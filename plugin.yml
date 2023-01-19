@@ -1,0 +1,9 @@
+name: SkyWars
+version: 1.0
+prefix: SkyWars
+main: skywars.SkyWars
+api-version: 1.13
+
+commands:
+   skywars:
+      aliases: [sw]
