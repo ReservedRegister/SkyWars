@@ -4,8 +4,6 @@ import java.util.concurrent.ExecutorService;
 
 import org.bukkit.block.BlockState;
 
-import skywars.adt.BlockRestoreTask;
-
 public class BlockRestoreBlockData extends BlockRestoreTask
 {
 	public BlockRestoreBlockData(SkyWars plugin, String world_name_in, ExecutorService threadpool_in)
@@ -36,8 +34,15 @@ public class BlockRestoreBlockData extends BlockRestoreTask
 		if(super.isThreadPoolDone())
 		{
 			super.getPlugin().getServer().getConsoleSender().sendMessage("[" + getBlocks() + "] blocks restored in [" + getRestoreWorld().getName() + "]");
-			super.getPlugin().attemptToStartCountdown(getRestoreWorld().getName(), null, false);
 			super.getPlugin().removeGame(getPlugin().getGame(getRestoreWorld().getName()));
+			
+			Lobby game_lobby = super.getPlugin().getLobby(getRestoreWorld().getName());
+			
+			if(game_lobby != null)
+			{
+				game_lobby.attemptToStartCountdown(false);
+			}
+			
 			super.cancel();
 		}
 	}

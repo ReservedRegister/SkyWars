@@ -2,23 +2,23 @@ package skywars;
 
 import org.bukkit.entity.Player;
 
+import net.md_5.bungee.api.ChatColor;
+
 public class GamePlayer
 {
 	private SkyWars pl;
+	private SkyWars.GameState player_state;
 	private String player_name;
 	private String game_name;
 	private int coins;
-	private boolean in_lobby;
-	private boolean in_game;
 	
 	public GamePlayer(SkyWars plugin, String player_name_in)
 	{
 		pl = plugin;
+		player_state = SkyWars.GameState.INACTIVE;
 		player_name = player_name_in;
 		game_name = null;
 		coins = 0;
-		in_lobby = false;
-		in_game = false;
 		
 		loadStats();
 	}
@@ -35,7 +35,10 @@ public class GamePlayer
 			coins = Integer.parseInt(player_stats);
 			return;
 		}
-		catch(NumberFormatException e) {}
+		catch(NumberFormatException e)
+		{
+			pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Failed to set stats for player: " + player_name);
+		}
 	}
 	
 	public String getGameName()
@@ -53,24 +56,15 @@ public class GamePlayer
 		return coins;
 	}
 	
-	public boolean getLobbyStatus()
+	public SkyWars.GameState getPlayerState()
 	{
-		return in_lobby;
-	}
-	
-	public boolean getGameStatus()
-	{
-		return in_game;
+		return player_state;
 	}
 	
 	public boolean isPlayerInGame(String game_name_in)
 	{
-		try
-		{
-			if(game_name.equals(game_name_in))
-				return true;
-		}
-		catch(NullPointerException e) {}
+		if(game_name.equals(game_name_in))
+			return true;
 		
 		return false;
 	}
@@ -85,13 +79,14 @@ public class GamePlayer
 		coins = new_coins;
 	}
 	
-	public void setLobbyStatus(boolean new_lobby_status)
+	public void setPlayerState(SkyWars.GameState newGameState)
 	{
-		in_lobby = new_lobby_status;
+		player_state = newGameState;
 	}
 	
-	public void setGameStatus(boolean new_game_status)
+	public void teleportPlayerToSpawn()
 	{
-		in_game = new_game_status;
+		if(!getPlayer().getWorld().getName().equals(pl.getGlobalSpawn().getName()))
+			getPlayer().teleport(pl.getGlobalSpawn().getSpawnLocation());
 	}
 }

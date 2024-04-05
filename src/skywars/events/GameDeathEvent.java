@@ -30,13 +30,17 @@ public class GameDeathEvent implements Listener
 		Player player = (Player) entity;
 		GamePlayer gamep = pl.getGamePlayer(player);
 		
-		try
+		if(gamep != null)
 		{
-			pl.removePlayerFromGame(gamep, player.getKiller(), null, false, false);
-		}
-		catch(NullPointerException e)
-		{
-			pl.removePlayerFromGame(gamep, null, null, false, false);
+			if(gamep.getPlayerState().equals(SkyWars.GameState.GAME))
+			{
+				pl.sendMessageToPlayers(SkyWars.GameState.GAME, gamep.getGameName(), gamep.getPlayer().getName() + " was eliminated from the game");
+				pl.removePlayerFromGame(gamep);
+			}
+			else if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY))
+			{
+				pl.playerLeave(player);
+			}
 		}
 	}
 }

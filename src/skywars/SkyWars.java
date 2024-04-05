@@ -22,6 +22,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import skywars.events.EventMethods;
 import skywars.events.GameAsyncPlayerChatEvent;
 import skywars.events.GameBlockBreakEvent;
 import skywars.events.GameBlockPlaceEvent;
@@ -32,12 +33,14 @@ import skywars.events.GamePlayerJoinEvent;
 import skywars.events.GamePlayerLeaveEvent;
 import skywars.events.GamePlayerMoveEvent;
 import skywars.events.GameWorldChangeEvent;
-import skywars.interfaces.ChunkSave;
 import skywars.legacy.ChunkSaveMaterialData;
+
+
 
 public class SkyWars extends JavaPlugin
 {
 	public static String PREFIX = ChatColor.translateAlternateColorCodes('&', "&3[&5SkyWars&3]&r ");
+	public enum GameState {INACTIVE, LOBBY, GAME};
 	
 	private ExecutorService arena_restore;
 	private EventMethods event_methods;
@@ -150,6 +153,11 @@ public class SkyWars extends JavaPlugin
 		meta.setDisplayName(ChatColor.LIGHT_PURPLE + "Selector");
 		item.setItemMeta(meta);
 		return item;
+	}
+	
+	public World getGlobalSpawn()
+	{
+		return spawn;
 	}
 	
 	public Iterator<GamePlayer> getGamePlayersIterator()
@@ -435,6 +443,21 @@ public class SkyWars extends JavaPlugin
 		return null;
 	}
 	
+	public GamePlayer getOrCreateGamePlayer(Player player)
+	{
+		for(GamePlayer gamep : players)
+		{
+			if(gamep.getPlayer().equals(player))
+			{
+				return gamep;
+			}
+		}
+		
+		GamePlayer new_gamep = new GamePlayer(this, player.getName());
+		players.add(new_gamep);
+		return new_gamep;
+	}
+	
 	public Game getGame(String game_name)
 	{
 		for(Game game : games)
@@ -696,153 +719,103 @@ public class SkyWars extends JavaPlugin
 	
 	public void removeGamePlayer(GamePlayer gamep)
 	{
-		try
+		if(gamep != null)
 		{
 			players.remove(gamep);
 		}
-		catch(NullPointerException e) {}
 	}
 	
 	public void removeGame(Game game)
 	{
-		try
+		if(game != null)
 		{
 			games.remove(game);
 		}
-		catch(NullPointerException e) {}
 	}
 	
 	public void removeLobby(Lobby lobby)
 	{
-		try
+		if(lobby != null)
 		{
 			lobbys.remove(lobby);
 		}
-		catch(NullPointerException e) {}
 	}
 	
-	private void sendMessageToGamePlayers(Player player, Player killer, String game_name, boolean force_quit)
+	public void managePlayerQuit(GamePlayer gamep)
 	{
-		if(force_quit == true)
-		{
-			player.sendMessage(ChatColor.RED + "You have left the game.");
+		if(gamep == null)
 			return;
-		}
 		
-		if(killer != null)
-			sendMessageToPlayers("game", game_name, player.getName() + " has been eliminated from the game by " + killer.getName());
-		else
-			sendMessageToPlayers("game", game_name, player.getName() + " has been eliminated from the game");
-	}
-	
-	public void teleportPlayerToSpawn(Player player)
-	{
-		if(!player.getWorld().getName().equals(spawn.getName()))
-			player.teleport(spawn.getSpawnLocation());
+		if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY))
+		{
+			Lobby player_lobby = getLobby(gamep.getGameName());
+			player_lobby.attemptToCloseLobby();
+		}
+		else if(gamep.getPlayerState().equals(SkyWars.GameState.GAME))
+		{
+			Game player_game = getGame(gamep.getGameName());
+			player_game.attemptToEndGame();
+			
+		}
 	}
 	
 	public void removePlayerFromList(GamePlayer gamep)
 	{
-		try
-		{
-			gamep.setLobbyStatus(false);
-			attemptToCloseLobby(gamep.getGameName());
-		}
-		catch(NullPointerException e) {}
-		
+		managePlayerQuit(gamep);
 		removeGamePlayer(gamep);
 	}
 	
-	public boolean removePlayerFromLobby(GamePlayer gamep, String game, boolean teleport)
+	public boolean removePlayerFromGame(GamePlayer gamep)
 	{
-		try
+		if(gamep != null)
 		{
-			Player player = gamep.getPlayer();
-			boolean is_ingame = gamep.isPlayerInGame(game);
-			
-			if(gamep.getLobbyStatus() == true && (is_ingame || game == null))
+			if(!gamep.getPlayerState().equals(SkyWars.GameState.INACTIVE))
 			{
-				gamep.setLobbyStatus(false);
+				managePlayerQuit(gamep);
 				
-				if(teleport)
-					player.teleport(spawn.getSpawnLocation());
-				
-				player.sendMessage(ChatColor.GREEN + "You have left the lobby");
-				
-				sendMessageToPlayers("lobby", gamep.getGameName(), gamep.getPlayer().getName() + " has left the lobby.");
-				attemptToCloseLobby(gamep.getGameName());
-				
+				gamep.setPlayerState(GameState.INACTIVE);
 				gamep.setGameName(null);
+				
 				return true;
 			}
 		}
-		catch(NullPointerException e) {}
 		
 		return false;
 	}
 	
-	public boolean removePlayerFromGame(GamePlayer gamep, Player killer, String game_name, boolean force_quit, boolean teleport)
+	public void sendMessageToPlayers(SkyWars.GameState player_state, String game_name, String msg)
 	{
-		try
-		{
-			Player player = gamep.getPlayer();
-			Game game = getGame(game_name);
-			boolean is_ingame = gamep.isPlayerInGame(game_name);
-			
-			if(gamep.getGameStatus() == true && (is_ingame || game == null))
-			{
-				gamep.setGameStatus(false);
-				
-				try
-				{
-					if(game.getGamePlayerCount() <= 1)
-						game.setHasStarted(false);
-				}
-				catch(NullPointerException e) {}
-				
-				if(teleport == true)
-					player.teleport(spawn.getSpawnLocation());
-				
-				sendMessageToGamePlayers(player, killer, game_name, force_quit);
-				gamep.setGameName(null);
-				return true;
-			}
-		}
-		catch(NullPointerException e) {}
-		
-		return false;
-	}
-	
-	public void sendMessageToPlayers(String player_type, String game_name, String msg)
-	{
-		if(player_type.equalsIgnoreCase("lobby"))
+		if(player_state.equals(SkyWars.GameState.LOBBY))
 		{
 			for(GamePlayer gamep : players)
 			{
-				if(gamep.getLobbyStatus() == true && gamep.isPlayerInGame(game_name))
+				if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY) && gamep.isPlayerInGame(game_name))
 				{
 					Player player = gamep.getPlayer();
 					player.sendMessage(msg);
 				}
 			}
 		}
-		else if(player_type.equalsIgnoreCase("game"))
+		else if(player_state.equals(SkyWars.GameState.GAME))
 		{
 			for(GamePlayer gamep : players)
 			{
-				if(gamep.getGameStatus() == true && gamep.isPlayerInGame(game_name))
+				if(gamep.getPlayerState().equals(SkyWars.GameState.GAME) && gamep.isPlayerInGame(game_name))
 				{
 					Player player = gamep.getPlayer();
 					player.sendMessage(msg);
 				}
 			}
 		}
-		else if(player_type.equalsIgnoreCase("all"))
+		else if(player_state.equals(SkyWars.GameState.INACTIVE))
 		{
 			for(GamePlayer gamep : players)
 			{
-				Player player = gamep.getPlayer();
-				player.sendMessage(msg);
+				if(gamep.getPlayerState().equals(SkyWars.GameState.INACTIVE))
+				{
+					Player player = gamep.getPlayer();
+					player.sendMessage(msg);
+				}
 			}
 		}
 	}
@@ -855,80 +828,21 @@ public class SkyWars extends JavaPlugin
 		{
 			Lobby lobby = getLobby(gamep.getGameName());
 			
-			if(gamep.getLobbyStatus() == false || gamep.getGameStatus() == true)
+			if(!gamep.getPlayerState().equals(GameState.LOBBY))
 			{
 				player.sendMessage(ChatColor.RED + "You have not joined a lobby!");
 				return;
 			}
-			else if(lobby.hasStarted() != true)
+			else if(!lobby.isRunning())
 			{
 				player.sendMessage(ChatColor.DARK_GREEN + "Game force started");
-				attemptToStartCountdown(gamep.getGameName(), player, true);
+				lobby.attemptToStartCountdown(true);
 				return;
 			}
 		}
-		catch(NullPointerException e) {}
-	}
-	
-	public void attemptToStartCountdown(String game_name, Player player, boolean force_start)
-	{
-		Lobby lobby = getLobby(game_name);
-		String min_players = files.readLine("arenas/" + game_name + "/", game_name + ".conf", "minimum_players");
-		
-		int min = -1;
-		
-		try
+		catch(NullPointerException e)
 		{
-			min = Integer.parseInt(min_players);
-		}
-		catch(NumberFormatException e)
-		{
-			player.sendMessage(ChatColor.RED + "Internal Error!");
-			return;
-		}
-		
-		try
-		{
-			if(!lobby.hasStarted())
-			{
-				if((lobby.getLobbyPlayerCount() >= min) || force_start == true)
-				{
-					lobby.startCountdown(game_name);
-				}
-			}
-		}
-		catch(NullPointerException e) {}
-	}
-	
-	public void attemptToCloseLobby(String game_name)
-	{
-		if(game_name == null || game_name == "")
-			return;
-		
-		Lobby lobby = getLobby(game_name);
-		String min_players = files.readLine("arenas/" + game_name + "/", game_name + ".conf", "minimum_players");
-		
-		int min = -1;
-		
-		try
-		{
-			min = Integer.parseInt(min_players);
-		}
-		catch(NumberFormatException e)
-		{
-			getServer().getConsoleSender().sendMessage("Failed to parse minimum players");
-			return;
-		}
-		
-		if(lobby.getLobbyPlayerCount() > 0 && lobby.getLobbyPlayerCount() < min)
-		{
-			lobby.stopLobbyTimer();
-			sendMessageToPlayers("lobby", game_name, "Game cancelled, not enough players!");
-		}
-		else if(lobby.getLobbyPlayerCount() < 1)
-		{
-			lobby.stopLobbyTimer();
-			lobbys.remove(lobby);
+			getServer().getConsoleSender().sendMessage(ChatColor.RED + "Failed to force lobby!");
 		}
 	}
 	
@@ -936,19 +850,34 @@ public class SkyWars extends JavaPlugin
 	{
 		GamePlayer gamep = getGamePlayer(player);
 		
-		if(removePlayerFromLobby(gamep, null, true))
-			return;
-		if(removePlayerFromGame(gamep, null, null, true, true))
-			return;
-		else
-			player.sendMessage(ChatColor.RED + "You have not joined a lobby/game.");
+		if(gamep != null)
+		{
+			String game_before_leave = gamep.getGameName();
+			GameState player_state_before_leave = gamep.getPlayerState();
+			boolean left = removePlayerFromGame(gamep);
+			
+			if(left && player_state_before_leave.equals(GameState.LOBBY))
+			{
+				player.sendMessage(ChatColor.RED + "You have left the lobby.");
+				sendMessageToPlayers(GameState.GAME, game_before_leave, player.getName() + " has left the lobby");
+			}
+			else if(left && player_state_before_leave.equals(GameState.GAME))
+			{
+				player.sendMessage(ChatColor.RED + "You have left the game!");
+				sendMessageToPlayers(GameState.GAME, game_before_leave, player.getName() + " has quit the game");
+			}
+			else
+			{
+				player.sendMessage(ChatColor.RED + "You have not joined a game.");
+			}
+		}
 	}
 	
 	public void playerJoin(Player player, String arena_name)
 	{
-		if(arena_name.isEmpty())
+		if(arenas.isEmpty())
 		{
-			player.sendMessage(ChatColor.RED + "There are not any loaded arenas!");
+			player.sendMessage(ChatColor.RED + "There are no loaded arenas!");
 			return;
 		}
 		
@@ -964,12 +893,10 @@ public class SkyWars extends JavaPlugin
 			return;
 		}
 		
-		GamePlayer gamep = getGamePlayer(player);
-		Lobby lobby = createLobby(arena_name);
+		GamePlayer gamep = getOrCreateGamePlayer(player);
+		Lobby lobby = getOrCreateLobby(arena_name);
 		
-		if(gamep == null)
-			players.add(new GamePlayer(this, player.getName()));
-		else if(gamep.getLobbyStatus() == true && gamep.isPlayerInGame(arena_name))
+		if(gamep.getPlayerState().equals(GameState.LOBBY) && gamep.isPlayerInGame(arena_name))
 		{
 			player.sendMessage(ChatColor.RED + "You have already joined the lobby.");
 			return;
@@ -980,12 +907,8 @@ public class SkyWars extends JavaPlugin
 			return;
 		}
 		
-		removePlayerFromLobby(gamep, null, false);
-		removePlayerFromGame(gamep, null, null, false, false);
-		
-		lobby.addPlayerToLobby(getGamePlayer(player));
-		sendMessageToPlayers("lobby", arena_name, player.getName() + " has joined the game");
-		attemptToStartCountdown(arena_name, player, false);
+		removePlayerFromGame(gamep);
+		lobby.addPlayerToLobby(gamep);
 	}
 	
 	public boolean isGameRunning(String game_name)
@@ -998,7 +921,7 @@ public class SkyWars extends JavaPlugin
 		return false;
 	}
 	
-	public Lobby createLobby(String arena_name)
+	public Lobby getOrCreateLobby(String arena_name)
 	{
 		Lobby lobby = getLobby(arena_name);
 		

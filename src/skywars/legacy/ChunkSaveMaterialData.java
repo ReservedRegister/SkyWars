@@ -8,11 +8,11 @@ import java.util.concurrent.ExecutorService;
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.Material;
 
+import skywars.BlockRestore;
+import skywars.ChunkRestore;
+import skywars.ChunkSave;
+import skywars.ChunkSaveCommon;
 import skywars.SkyWars;
-import skywars.adt.ChunkSaveCommon;
-import skywars.interfaces.BlockRestore;
-import skywars.interfaces.ChunkRestore;
-import skywars.interfaces.ChunkSave;
 
 public class ChunkSaveMaterialData extends ChunkSaveCommon implements ChunkSave
 {

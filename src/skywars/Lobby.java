@@ -8,6 +8,8 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
+import skywars.SkyWars.GameState;
+
 public class Lobby
 {
 	private SkyWars pl;
@@ -15,7 +17,7 @@ public class Lobby
 	private Location lobby_spawn;
 	private String game_name;
 	private int seconds;
-	private boolean has_started;
+	private boolean isRunning;
 	
 	public Lobby(SkyWars plugin, String game_name_in)
 	{
@@ -23,9 +25,14 @@ public class Lobby
 		lobby_timer = null;
 		game_name = game_name_in;
 		seconds = 10;
-		has_started = false;
+		isRunning = false;
 		
 		lobby_spawn = getLobbySpawn();
+	}
+	
+	public boolean isRunning()
+	{
+		return isRunning;
 	}
 	
 	public String getGameName()
@@ -38,9 +45,9 @@ public class Lobby
 		game_name = new_game_name;
 	}
 	
-	public boolean hasStarted()
+	public void setRunStatus(boolean isRunning_in)
 	{
-		return has_started;
+		isRunning = isRunning_in;
 	}
 	
 	public int getLobbyPlayerCount()
@@ -53,7 +60,7 @@ public class Lobby
 		{
 			GamePlayer gamep = gamep_it.next();
 			
-			if(gamep.getLobbyStatus() == true && gamep.isPlayerInGame(game_name))
+			if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY) && gamep.isPlayerInGame(game_name))
 			{
 				totalPlayers++;
 			}
@@ -82,12 +89,6 @@ public class Lobby
 		return false;
 	}
 	
-	public void startGame()
-	{
-		stopLobbyTimer();
-		createGame();
-	}
-	
 	private void createGame()
 	{
 		String movement_line = pl.getFileManager().readLine("arenas/" + game_name + "/", game_name + ".conf", "allow_movement");
@@ -102,12 +103,12 @@ public class Lobby
 		if(lobby_timer != null)
 		{
 			lobby_timer.cancel();
-			has_started = false;
 			seconds = 10;
+			lobby_timer = null;
 		}
 	}
 	
-	public void startCountdown(String game_name)
+	public void startCountdown()
 	{
 		lobby_timer = pl.getServer().getScheduler().runTaskTimer(pl, new Runnable()
 		{
@@ -116,32 +117,53 @@ public class Lobby
 			{
 				if(seconds == 0)
 				{
-					startGame();
+					stopLobbyTimer();
+					createGame();
 					return;
 				}
 				
-				pl.sendMessageToPlayers("lobby", game_name, ChatColor.YELLOW + "Seconds left: " + seconds);
+				pl.sendMessageToPlayers(SkyWars.GameState.LOBBY, game_name, ChatColor.YELLOW + "Seconds left: " + seconds);
 				seconds--;
 			}
 		}, 0, 20);
-		
-		has_started = true;
-	}
-	
-	public void setHasStarted(boolean new_start_value)
-	{
-		has_started = new_start_value;
 	}
 	
 	public void addPlayerToLobby(GamePlayer gamep)
 	{
-		try
+		if(gamep != null)
 		{
-			gamep.setLobbyStatus(true);
+			gamep.setPlayerState(SkyWars.GameState.LOBBY);
 			gamep.setGameName(game_name);
 			sendPlayerToLobby(gamep);
+			
+			pl.sendMessageToPlayers(GameState.LOBBY, game_name, gamep.getPlayer().getName() + " has joined the game");
+			attemptToStartCountdown(false);
 		}
-		catch(NullPointerException e) {}
+	}
+	
+	public void attemptToStartCountdown(boolean force_start)
+	{
+		String min_players =  pl.getFileManager().readLine("arenas/" + game_name + "/", game_name + ".conf", "minimum_players");
+		
+		int min = -1;
+		
+		try
+		{
+			min = Integer.parseInt(min_players);
+		}
+		catch(NumberFormatException e)
+		{
+			pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Internal Error!");
+			return;
+		}
+		
+		if(!isRunning())
+		{
+			if((getLobbyPlayerCount() >= min) || force_start == true)
+			{
+				startCountdown();
+			}
+		}
 	}
 	
 	public Location getLobbySpawn()
@@ -214,5 +236,33 @@ public class Lobby
 		
 		player.teleport(lobby_spawn);
 		player.sendMessage(ChatColor.AQUA + "Lobby Joined!");
+	}
+	
+	public void attemptToCloseLobby()
+	{	
+		String min_players = pl.getFileManager().readLine("arenas/" + game_name + "/", game_name + ".conf", "minimum_players");
+		
+		int min = -1;
+		
+		try
+		{
+			min = Integer.parseInt(min_players);
+		}
+		catch(NumberFormatException e)
+		{
+			pl.getServer().getConsoleSender().sendMessage("Failed to parse minimum players");
+			return;
+		}
+		
+		if(getLobbyPlayerCount() >= 1 && getLobbyPlayerCount() < min)
+		{
+			stopLobbyTimer();
+			pl.sendMessageToPlayers(GameState.LOBBY, game_name, "Game cancelled, not enough players!");
+		}
+		else if(getLobbyPlayerCount() <= 0)
+		{
+			stopLobbyTimer();
+			pl.removeLobby(this);
+		}
 	}
 }

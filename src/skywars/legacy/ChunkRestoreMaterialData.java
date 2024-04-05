@@ -6,10 +6,10 @@ import java.util.Map;
 
 import org.bukkit.ChunkSnapshot;
 
+import skywars.BlockRestore;
+import skywars.ChunkRestore;
+import skywars.ChunkRestoreTask;
 import skywars.SkyWars;
-import skywars.adt.ChunkRestoreTask;
-import skywars.interfaces.BlockRestore;
-import skywars.interfaces.ChunkRestore;
 
 public class ChunkRestoreMaterialData extends ChunkRestoreTask implements ChunkRestore
 {

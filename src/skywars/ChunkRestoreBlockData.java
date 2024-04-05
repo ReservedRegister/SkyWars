@@ -4,10 +4,6 @@ import java.util.Map;
 
 import org.bukkit.ChunkSnapshot;
 
-import skywars.adt.ChunkRestoreTask;
-import skywars.interfaces.BlockRestore;
-import skywars.interfaces.ChunkRestore;
-
 public class ChunkRestoreBlockData extends ChunkRestoreTask implements ChunkRestore
 {
 	private BlockRestore blockrestore_task;

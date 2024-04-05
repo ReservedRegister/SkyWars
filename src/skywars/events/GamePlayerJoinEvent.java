@@ -6,6 +6,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 
+import skywars.GamePlayer;
 import skywars.SkyWars;
 
 public class GamePlayerJoinEvent implements Listener
@@ -21,7 +22,8 @@ public class GamePlayerJoinEvent implements Listener
 	public void onPlayerJoinEvent(PlayerJoinEvent event)
 	{
 		Player player = event.getPlayer();
+		GamePlayer new_player = pl.getOrCreateGamePlayer(player);
 		event.setJoinMessage(ChatColor.translateAlternateColorCodes('&', "&4&l" + player.getName() + " has joined the game!"));
-		pl.teleportPlayerToSpawn(player);
+		new_player.teleportPlayerToSpawn();
 	}
 }

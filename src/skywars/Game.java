@@ -17,28 +17,25 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
-import skywars.interfaces.BlockRestore;
-import skywars.interfaces.ChunkSave;
 import skywars.others.GzipUtil;
 
 public class Game
 {
 	private SkyWars pl;
-	private BukkitTask min_player_task;
+	private GamePlayer winner;
 	private BukkitTask delay_before_end;
 	private BukkitTask game_player_delay;
 	private World arena;
 	private String game_name;
 	private int postgame_delayseconds;
 	private int pregame_delaysecods;
-	private boolean has_started;
 	private boolean pre_game;
 	private boolean player_move_allow;
 	
 	public Game(SkyWars plugin, World arena_in, String game_name_in, boolean allow_movement_in)
 	{
 		pl = plugin;
-		min_player_task = null;
+		winner = null;
 		delay_before_end = null;
 		game_player_delay = null;
 		arena = arena_in;
@@ -46,7 +43,6 @@ public class Game
 		postgame_delayseconds = 5;
 		pregame_delaysecods = 3;
 		player_move_allow = allow_movement_in;
-		has_started = false;
 		pre_game = false;
 	}
 	
@@ -60,7 +56,7 @@ public class Game
 		return game_name;
 	}
 	
-	public boolean getMoveStatus()
+	public boolean isAllowedToMove()
 	{
 		return player_move_allow;
 	}
@@ -75,7 +71,7 @@ public class Game
 		{
 			GamePlayer gamep = gamep_it.next();
 			
-			if(gamep.getGameStatus() == true && gamep.isPlayerInGame(game_name))
+			if(gamep.getPlayerState().equals(SkyWars.GameState.GAME) && gamep.isPlayerInGame(game_name))
 				totalPlayers++;
 		}
 		
@@ -126,7 +122,7 @@ public class Game
 					return;
 				}
 				
-				pl.sendMessageToPlayers("game", game_name, ChatColor.RED + "Starting in " + ChatColor.BOLD + pregame_delaysecods);
+				pl.sendMessageToPlayers(SkyWars.GameState.GAME, game_name, ChatColor.RED + "Starting in " + ChatColor.BOLD + pregame_delaysecods);
 				pregame_delaysecods--;
 			}
 		}, 0, 20);
@@ -135,10 +131,9 @@ public class Game
 	public void dispatchPlayers()
 	{
 		player_move_allow = true;
-		startMinPlayerTask();
+		freePlayersFromCages(game_name);
 		
-		if(player_move_allow)
-			freePlayersFromCages(game_name);
+		pre_game = false;
 	}
 	
 	private void freePlayersFromCages(String game_name)
@@ -149,7 +144,7 @@ public class Game
 		{
 			GamePlayer gamep = gamep_it.next();
 			
-			if(gamep.getGameStatus() == true && gamep.isPlayerInGame(game_name) == true)
+			if(gamep.getPlayerState().equals(SkyWars.GameState.GAME) && gamep.isPlayerInGame(game_name))
 			{
 				Player player = gamep.getPlayer();
 				Location location = player.getLocation();
@@ -170,11 +165,10 @@ public class Game
 		{
 			GamePlayer gamep = gamep_it.next();
 			
-			if(gamep.getLobbyStatus() == true && gamep.isPlayerInGame(game_name))
+			if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY) && gamep.isPlayerInGame(game_name))
 			{
 				spawnpoints = sendPlayerToGame(gamep.getPlayer(), spawnpoints);
-				gamep.setLobbyStatus(false);
-				gamep.setGameStatus(true);
+				gamep.setPlayerState(SkyWars.GameState.GAME);
 			}
 		}
 	}
@@ -199,24 +193,19 @@ public class Game
 	
 	public void endGame()
 	{
-		GamePlayer gamep = getWinningGamePlayer();
-		
-		try
+		if(winner != null)
 		{
-			gamep.setCoins(gamep.getCoins() + 1);
-			pl.sendMessageToPlayers("lobby", game_name, gamep.getPlayer().getName() + " has won the game");
-			pl.sendMessageToPlayers("game", game_name, gamep.getPlayer().getName() + " has won the game");
-			pl.getFileManager().writeLine("", "stats.txt", gamep.getPlayer().getName(), ((Integer)gamep.getCoins()).toString());
+			winner.setCoins(winner.getCoins() + 1);
+			pl.sendMessageToPlayers(SkyWars.GameState.LOBBY, game_name, winner.getPlayer().getName() + " has won the game");
+			pl.sendMessageToPlayers(SkyWars.GameState.GAME, game_name, winner.getPlayer().getName() + " has won the game");
+			pl.getFileManager().writeLine("", "stats.txt", winner.getPlayer().getName(), ((Integer)winner.getCoins()).toString());
 		}
-		catch(NullPointerException e) {}
+		else
+		{
+			pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Failed to find winning player in game: " + game_name);
+		}
 		
 		startDelayTask();
-	}
-	
-	private void prepareNewGame()
-	{
-		stopDelayTask();
-		restoreArena();
 	}
 	
 	private Map<Integer, String> readChunkMaps()
@@ -265,6 +254,7 @@ public class Game
 					while((character_byte = stream.read()) != -1)
 					{
 						String character = new String(new byte[]{(byte) character_byte});
+						
 						if(character.equals("]"))
 						{
 							String chunk_name = buffer.substring(0, buffer.indexOf(","));
@@ -304,21 +294,6 @@ public class Game
 		});
 	}
 	
-	private GamePlayer getWinningGamePlayer()
-	{
-		Iterator<GamePlayer> gamep_it = pl.getGamePlayersIterator();
-		
-		while(gamep_it.hasNext())
-		{
-			GamePlayer gamep = gamep_it.next();
-			
-			if(gamep.getGameStatus() == true && gamep.getGameName().equals(game_name))
-				return gamep;
-		}
-		
-		return null;
-	}
-	
 	public void startDelayTask()
 	{
 		delay_before_end = pl.getServer().getScheduler().runTaskTimer(pl, new Runnable()
@@ -327,16 +302,19 @@ public class Game
 			public void run()
 			{
 				try
-				{
-					GamePlayer gamep = getWinningGamePlayer();
-					
-					if(gamep == null)
-						prepareNewGame();
+				{	
+					if(getGamePlayerCount() <= 0)
+					{
+						restoreArena();
+						delay_before_end.cancel();
+					}
 					
 					if(postgame_delayseconds == 0)
 					{
-						pl.removePlayerFromGame(gamep, null, game_name, false, true);
-						prepareNewGame();
+						pl.removePlayerFromGame(winner);
+						winner.teleportPlayerToSpawn();
+						restoreArena();
+						delay_before_end.cancel();
 					}
 					
 					postgame_delayseconds--;
@@ -346,55 +324,40 @@ public class Game
 		}, 0, 20);
 	}
 	
-	public void stopDelayTask()
+	private void setWinner()
 	{
-		if(delay_before_end != null)
-			delay_before_end.cancel();
-	}
-	
-	public void startMinPlayerTask()
-	{
-		min_player_task = pl.getServer().getScheduler().runTaskTimer(pl, new Runnable()
-		{
-			@Override
-			public void run()
-			{
-				if(getGamePlayerCount() == 1)
-				{
-					stopMinPlayerTask();
-					endGame();
-				}
-				else if(getGamePlayerCount() < 1)
-				{
-					stopMinPlayerTask();
-					prepareNewGame();
-				}
-			}
-		}, 0, 5);
+		Iterator<GamePlayer> gamep_it = pl.getGamePlayersIterator();
 		
-		pre_game = false;
-		has_started = true;
+		while(gamep_it.hasNext())
+		{
+			GamePlayer gamep = gamep_it.next();
+			
+			if(gamep.getPlayerState().equals(SkyWars.GameState.GAME) && gamep.isPlayerInGame(game_name))
+			{
+				winner = gamep;
+				return;
+			}
+		}
 	}
 	
-	public void stopMinPlayerTask()
+	public void attemptToEndGame()
 	{
-		min_player_task.cancel();
-		has_started = false;
+		int player_count = getGamePlayerCount();
+		
+		if(player_count == 1)
+		{
+			setWinner();
+			endGame();
+		}
+		else if(player_count < 1)
+		{
+			restoreArena();
+		}
 	}
 	
-	public boolean getPreGameStatus()
+	public boolean isInPreGame()
 	{
 		return pre_game;
-	}
-	
-	public boolean getHasStarted()
-	{
-		return has_started;
-	}
-	
-	public void setHasStarted(boolean new_value)
-	{
-		has_started = new_value;
 	}
 	
 	public void setPreGameStatus(boolean new_value)
