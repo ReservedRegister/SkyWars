@@ -34,12 +34,26 @@ public class SkyWarsCommand implements CommandExecutor
 		else if(args.length == 1)
 		{
 			if(args[0].equalsIgnoreCase("enable"))
-			{
-				pl.enablePlugin(sender);
+			{	
+				if(pl.enablePlugin())
+				{
+					sender.sendMessage(SkyWars.PREFIX + ChatColor.GREEN + "Plugin enabled!");
+				}
+				else
+				{
+					sender.sendMessage(SkyWars.PREFIX + ChatColor.RED + "Plugin already enabled!");
+				}
 			}
 			else if(args[0].equalsIgnoreCase("world"))
 			{
-				sender.sendMessage(((Player) sender).getWorld().getName());
+				if(!(sender instanceof Player))
+				{
+					sender.sendMessage(ChatColor.RED + "Command could only be executed from in game");
+					return true;
+				}
+				
+				Player player = (Player) sender;
+				sender.sendMessage(player.getWorld().getName());
 			}
 			else if(args[0].equalsIgnoreCase("join"))
 			{
@@ -112,17 +126,24 @@ public class SkyWarsCommand implements CommandExecutor
 				}
 				
 				Location location = player.getLocation();
-				
 				String arena_name = player.getWorld().getName();
-				String msg = pl.addSpawnpoint(arena_name, location);
 				
-				player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+				boolean success = pl.getFileManager().writeSpawnpoint(arena_name, location);
+				
+				if(success)
+				{
+					player.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved spawnpoint!");
+				}
+				else
+				{
+					player.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save spawnpoint!");
+				}
 			}
 			else if(args[0].equalsIgnoreCase("setlobbyspawn"))
 			{
 				if(!(sender instanceof Player))
 				{
-					sender.sendMessage(ChatColor.RED + "Command could only be executed from in game");
+					sender.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Command could only be executed from in game");
 					return true;
 				}
 				
@@ -130,22 +151,29 @@ public class SkyWarsCommand implements CommandExecutor
 				
 				if(!pl.isPluginEnabled())
 				{
-					player.sendMessage(ChatColor.RED + "Plugin not enabled!");
+					player.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Plugin not enabled!");
 					return true;
 				}
 				
 				Location location = player.getLocation();
-				
 				String arena_name = player.getWorld().getName();
-				String msg = pl.setLobbySpawn(arena_name, location);
 				
-				player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+				boolean success = pl.getFileManager().writeLobbySpawn(arena_name, location);
+				
+				if(success)
+				{
+					player.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved lobby spawn!");
+				}
+				else
+				{
+					player.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save lobby spawn!");
+				}
 			}
 			else if(args[0].equalsIgnoreCase("setcentre"))
 			{
 				if(!(sender instanceof Player))
 				{
-					sender.sendMessage(ChatColor.RED + "Command could only be executed from in game");
+					sender.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Command could only be executed from in game");
 					return true;
 				}
 				
@@ -153,7 +181,7 @@ public class SkyWarsCommand implements CommandExecutor
 				
 				if(!pl.isPluginEnabled())
 				{
-					player.sendMessage(ChatColor.RED + "Plugin not enabled!");
+					player.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Plugin not enabled!");
 					return true;
 				}
 				
@@ -161,9 +189,16 @@ public class SkyWarsCommand implements CommandExecutor
 				Chunk chunk = location.getChunk();
 				
 				String arena_name = player.getWorld().getName();
-				String msg = pl.setCentre(arena_name, chunk.getX(), chunk.getZ());
+				boolean success = pl.getFileManager().writeCentre(arena_name, chunk.getX(), chunk.getZ());
 				
-				player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+				if(success)
+				{
+					player.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved centre for arena!");
+				}
+				else
+				{
+					player.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save centre for arena!");
+				}
 			}
 			else if(args[0].equalsIgnoreCase("selector"))
 			{
@@ -204,7 +239,7 @@ public class SkyWarsCommand implements CommandExecutor
 					catch(SecurityException e1) {}
 					catch(NoSuchMethodException e3) 
 					{
-						System.out.println("failed to find a method to get item from player's hand");
+						player.sendMessage(ChatColor.RED + "Failed to find a method to get item from player's hand");
 					}
 				}
 				
@@ -237,7 +272,8 @@ public class SkyWarsCommand implements CommandExecutor
 					return true;
 				}
 				
-				pl.createArena(sender, args[1]);
+				pl.createArena(args[1]);
+				sender.sendMessage(ChatColor.GREEN + "Arena: " + args[1] + " created!");
 			}
 			else if(args[0].equalsIgnoreCase("load"))
 			{
@@ -318,12 +354,20 @@ public class SkyWarsCommand implements CommandExecutor
 					String arena_name = player.getWorld().getName();
 					int max_players = Integer.parseInt(args[1]);
 					
-					String msg = pl.setMaxPlayers(arena_name, max_players);
-					player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+					boolean success = pl.getFileManager().writeMaxPlayers(arena_name, max_players);
+					
+					if(success)
+					{
+						player.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved max players!");
+					}
+					else
+					{
+						player.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save max players!");
+					}
 				}
 				catch(NumberFormatException e)
 				{
-					player.sendMessage(ChatColor.RED + "Please enter a number");
+					player.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Please enter a number");
 				}
 			}
 			else if(args[0].equalsIgnoreCase("setmin"))
@@ -347,8 +391,12 @@ public class SkyWarsCommand implements CommandExecutor
 					String arena_name = player.getWorld().getName();
 					int min_players = Integer.parseInt(args[1]);
 					
-					String msg = pl.setMinPlayers(arena_name, min_players);
-					player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+					boolean success = pl.getFileManager().writeMinPlayers(arena_name, min_players);
+					
+					if(success)
+					{
+						player.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved min players!");
+					}
 				}
 				catch(NumberFormatException e)
 				{
@@ -373,14 +421,32 @@ public class SkyWarsCommand implements CommandExecutor
 				
 				if(args[1].equalsIgnoreCase("true"))
 				{
-					String msg = pl.setMovement(player.getWorld().getName(), true);
-					player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+					boolean success = pl.getFileManager().writeMoveSetting(player.getWorld().getName(), true);
+					
+					if(success)
+					{
+						player.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved movement setting!");
+					}
+					else
+					{
+						player.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save movement setting!");
+					}
+					
 					return true;
 				}
 				else if(args[1].equalsIgnoreCase("false"))
 				{
-					String msg = pl.setMovement(player.getWorld().getName(), false);
-					player.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+					boolean success = pl.getFileManager().writeMoveSetting(player.getWorld().getName(), false);
+					
+					if(success)
+					{
+						player.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved movement setting!");
+					}
+					else
+					{
+						player.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save movement setting!");
+					}
+					
 					return true;
 				}
 				
@@ -420,8 +486,16 @@ public class SkyWarsCommand implements CommandExecutor
 					String arena_name = args[1];
 					int max_players = Integer.parseInt(args[2]);
 					
-					String msg = pl.setMaxPlayers(arena_name, max_players);
-					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+					boolean success = pl.getFileManager().writeMaxPlayers(arena_name, max_players);
+					
+					if(success)
+					{
+						sender.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved max players!");
+					}
+					else
+					{
+						sender.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save max players!");
+					}
 				}
 				catch(NumberFormatException e)
 				{
@@ -441,8 +515,16 @@ public class SkyWarsCommand implements CommandExecutor
 					String arena_name = args[1];
 					int min_players = Integer.parseInt(args[2]);
 					
-					String msg = pl.setMinPlayers(arena_name, min_players);
-					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+					boolean success = pl.getFileManager().writeMinPlayers(arena_name, min_players);
+					
+					if(success)
+					{
+						sender.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved min players!");
+					}
+					else
+					{
+						sender.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save min players!");
+					}
 				}
 				catch(NumberFormatException e)
 				{
@@ -453,14 +535,32 @@ public class SkyWarsCommand implements CommandExecutor
 			{
 				if(args[2].equalsIgnoreCase("true"))
 				{
-					String msg = pl.setMovement(args[1], true);
-					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+					boolean success = pl.getFileManager().writeMoveSetting(args[1], true);
+					
+					if(success)
+					{
+						sender.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved movement setting!");
+					}
+					else
+					{
+						sender.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save movement setting!");
+					}
+					
 					return true;
 				}
 				else if(args[2].equalsIgnoreCase("false"))
 				{
-					String msg = pl.setMovement(args[1], false);
-					sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+					boolean success = pl.getFileManager().writeMoveSetting(args[1], false);
+					
+					if(success)
+					{
+						sender.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Successfully saved movement setting!");
+					}
+					else
+					{
+						sender.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to save movement setting!");
+					}
+					
 					return true;
 				}
 				

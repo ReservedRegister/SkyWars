@@ -10,7 +10,7 @@ import java.util.TimerTask;
 
 public class FileHandle
 {
-	private FileManager files;
+	private ArenaFileManager files;
 	private Queue<byte[]> write_data_buffer;
 	private OutputStream output_stream;
 	private boolean deleteHandle;

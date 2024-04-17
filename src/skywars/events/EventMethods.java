@@ -27,16 +27,12 @@ public class EventMethods
 	{
 		GamePlayer gamep = pl.getGamePlayer(player);
 		
-		try
+		if(gamep != null)
 		{
 			Game game = pl.getGame(gamep.getGameName());
 			
 			if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY) || (gamep.getPlayerState().equals(SkyWars.GameState.GAME) && game.isInPreGame()))
 				return true;
-		}
-		catch(NullPointerException e)
-		{
-			pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Failed to service PlayerDamageEvent!");
 		}
 		
 		return false;

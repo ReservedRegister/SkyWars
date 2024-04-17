@@ -54,7 +54,7 @@ public class Lobby
 	{
 		int totalPlayers = 0;
 		
-		Iterator<GamePlayer> gamep_it = pl.getGamePlayersIterator();
+		Iterator<GamePlayer> gamep_it = pl.getGamePlayers().iterator();
 		
 		while(gamep_it.hasNext())
 		{
@@ -91,10 +91,7 @@ public class Lobby
 	
 	private void createGame()
 	{
-		String movement_line = pl.getFileManager().readLine("arenas/" + game_name + "/", game_name + ".conf", "allow_movement");
-		boolean movement = pl.getBooleanFromString(movement_line);
-		
-		Game game = pl.createGame(game_name, movement);
+		Game game = pl.createGame(game_name);
 		game.createGame(this);
 	}
 	

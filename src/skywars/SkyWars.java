@@ -2,7 +2,6 @@ package skywars;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -10,7 +9,6 @@ import java.util.concurrent.Executors;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
@@ -40,11 +38,13 @@ import skywars.legacy.ChunkSaveMaterialData;
 public class SkyWars extends JavaPlugin
 {
 	public static String PREFIX = ChatColor.translateAlternateColorCodes('&', "&3[&5SkyWars&3]&r ");
+	public static String SUCCESS = String.valueOf(ChatColor.GREEN);
+	public static String ERROR = String.valueOf(ChatColor.RED);
 	public enum GameState {INACTIVE, LOBBY, GAME};
 	
 	private ExecutorService arena_restore;
 	private EventMethods event_methods;
-	private FileManager files;
+	private ArenaFileManager files;
 	private ChunkSave chunk_save;
 	private World spawn;
 	private boolean enabled;
@@ -93,7 +93,7 @@ public class SkyWars extends JavaPlugin
 	{
 		arena_restore = Executors.newSingleThreadExecutor();
 		event_methods = new EventMethods(this);
-		files = new FileManager(this);
+		files = new ArenaFileManager(this);
 		spawn = getServer().getWorld("world");
 		enabled = false;
 		
@@ -160,34 +160,19 @@ public class SkyWars extends JavaPlugin
 		return spawn;
 	}
 	
-	public Iterator<GamePlayer> getGamePlayersIterator()
+	public Set<GamePlayer> getGamePlayers()
 	{
-		return players.iterator();
+		return players;
 	}
 	
-	public Iterator<Lobby> getLobbyIterator()
+	public Set<String> getLoadedArenas()
 	{
-		return lobbys.iterator();
+		return arenas;
 	}
 	
-	public Iterator<Game> getGameIterator()
+	public Set<String> getLoadingArenas()
 	{
-		return games.iterator();
-	}
-	
-	public void addGame(Game new_game)
-	{
-		games.add(new_game);
-	}
-	
-	public void addLobby(Lobby new_lobby)
-	{
-		lobbys.add(new_lobby);
-	}
-	
-	public void addArenaToSet(String arena_name)
-	{
-		arenas.add(arena_name);
+		return loading_arenas;
 	}
 	
 	public EventMethods getEventMethods()
@@ -195,7 +180,7 @@ public class SkyWars extends JavaPlugin
 		return event_methods;
 	}
 	
-	public FileManager getFileManager()
+	public ArenaFileManager getFileManager()
 	{
 		return files;
 	}
@@ -210,64 +195,15 @@ public class SkyWars extends JavaPlugin
 		return chunk_save;
 	}
 	
-	public void removeArenaFromQueue(String arena_name)
+	public boolean isPluginEnabled()
 	{
-		loading_arenas.remove(arena_name);
+		return enabled;
 	}
 	
-	public String setMaxPlayers(String arena, int max)
+	public void createArena(String arena)
 	{
-		List<String> allowed_arenas = files.read("arenas.txt");
-		
-		if(!allowed_arenas.contains(arena) || arenas.contains(arena))
-			return "You are not allowed to set max players for the chosen arena name!";
-		
-		if(max < 1 || max > 16)
-			return "Number out of bounds. Try again!";
-		
-		files.writeLine("arenas/" + arena + "/", arena + ".conf", "maximum_players", "" + max);
-		return "Successfully updated max players for the chosen arena name!";
-	}
-	
-	public String setMinPlayers(String arena, int min)
-	{
-		List<String> allowed_arenas = files.read("arenas.txt");
-		
-		if(!allowed_arenas.contains(arena) || arenas.contains(arena))
-			return "You are not allowed to set min players for the chosen arena name!";
-		
-		files.writeLine("arenas/" + arena + "/", arena + ".conf", "minimum_players", "" + min);
-		return "Successfully updated min players for the chosen arena name!";
-	}
-	
-	public String setMovement(String arena, boolean movement)
-	{
-		List<String> allowed_arenas = files.read("arenas.txt");
-		
-		if(!allowed_arenas.contains(arena) || arenas.contains(arena))
-			return "You are not allowed to set movement settings for the chosen arena";
-		
-		files.writeLine("arenas/" + arena + "/", arena + ".conf", "allow_movement", "" + movement);
-		return "Movement settings set!";
-	}
-	
-	public String setCentre(String arena, int chunk_x, int chunk_z)
-	{
-		List<String> allowed_arenas = files.read("arenas.txt");
-		
-		if(!allowed_arenas.contains(arena) || arenas.contains(arena))
-			return "You are not allowed to set the centre for the chosen arena";
-		
-		files.writeLine("arenas/" + arena + "/", arena + ".conf", "centre", chunk_x + " " + chunk_z);
-		return "Centre for this arena has been set!";
-	}
-	
-	public void createArena(CommandSender sender, String arena)
-	{
-		sender.sendMessage(ChatColor.GREEN + "Working...");
-		
 		String[] world_names = {arena};
-		new CreateWorldsTask(sender, world_names, "&bArena Loaded!").runTaskTimer(this, 0, 15);
+		new CreateWorldsTask(world_names).runTaskTimer(this, 0, 15);
 		files.writeLine("", "arenas.txt", "", arena);
 	}
 	
@@ -291,87 +227,17 @@ public class SkyWars extends JavaPlugin
 		player.sendMessage(ChatColor.GREEN + "Successfully teleported!");
 	}
 	
-	public String setLobbySpawn(String arena, Location location)
-	{
-		List<String> allowed_arenas = files.read("arenas.txt");
-		
-		if(!allowed_arenas.contains(arena) || arenas.contains(arena))
-		{
-			return "You are not allowed to set spawnpoints for this arena!";
-		}
-		
-		String file_path = "arenas/" + arena + "/";
-		String file_name = arena + ".conf";
-		
-		String lobby_spawn = files.readLine(file_path, file_name, "lobby_spawn");
-		
-		if(lobby_spawn.isEmpty())
-		{
-			String write_line = location.getX() + " " + location.getY() + " " + location.getZ();
-			files.writeLine(file_path, file_name, "lobby_spawn", write_line);
-			
-			return "Successfully set lobby spawn for arena";
-		}
-		
-		return "Value already set";
-	}
-	
-	public String addSpawnpoint(String arena, Location location)
-	{
-		List<String> allowed_arenas = files.read("arenas.txt");
-		
-		if(!allowed_arenas.contains(arena) || arenas.contains(arena))
-		{
-			return "You are not allowed to set spawnpoints for this arena!";
-		}
-		
-		String file_path = "arenas/" + arena + "/";
-		String file_name = arena + ".conf";
-		String[] sections = {"spawnpoints:"};
-		
-		List<String> spawnpoints = files.readSection(file_path, file_name, sections);
-		
-		String maximum_players = files.readLine(file_path, file_name, "maximum_players");
-		
-		if(!maximum_players.isEmpty())
-		{
-			try
-			{
-				int max_players = Integer.parseInt(maximum_players);
-				
-				if(spawnpoints.size() >= max_players)
-					return "Maximum number of spawnpoints reached";
-			}
-			catch(NumberFormatException e) 
-			{
-				getServer().getConsoleSender().sendMessage("Failed to parse max players");
-			}
-		}
-		else
-			return "Maximum number of players was not found";
-		
-		String write_line = location.getX() + " " + location.getY() + " " + location.getZ();
-		files.writeToSection("arenas/" + arena + "/", arena + ".conf", sections, new String[]{write_line});
-		return "Successfully updated spawnpoint for the chosen arena!";
-	}
-	
-	public boolean isPluginEnabled()
-	{
-		return enabled;
-	}
-	
-	public void enablePlugin(CommandSender player)
+	public boolean enablePlugin()
 	{
 		if(enabled)
 		{
-			player.sendMessage(PREFIX + ChatColor.RED + "Plugin already enabled!");
-			return;
+			return false;
 		}
 		
 		registerEvents();
 		setupGamePlayers();
 		
-		player.sendMessage(PREFIX + ChatColor.RED + "Plugin enabled!");
+		return true;
 	}
 	
 	private void iterateXAndZ(World world, int y, int x_start, int x_end, int z_start, int z_end)
@@ -496,10 +362,12 @@ public class SkyWars extends JavaPlugin
 	
 	public String getFirstArena()
 	{
-		if(!arenas.isEmpty())
-			return arenas.iterator().next();
+		if(arenas.isEmpty())
+		{
+			return null;
+		}
 		
-		return "";
+		return arenas.iterator().next();
 	}
 	
 	public void unloadArena(CommandSender sender, String arena)
@@ -655,7 +523,7 @@ public class SkyWars extends JavaPlugin
 		
 		sender.sendMessage(ChatColor.YELLOW + "Checking arena data...");
 		
-		if(!checkArenaData(arena))
+		if(!files.loadArenaData(arena))
 		{
 			sender.sendMessage(ChatColor.RED + "Arena data is invalid or does not exist");
 			return;
@@ -679,42 +547,6 @@ public class SkyWars extends JavaPlugin
 		
 		arenas.add(arena);
 		sender.sendMessage(ChatColor.DARK_PURPLE + "Arena loaded!");
-	}
-	
-	private boolean checkArenaData(String arena)
-	{
-		String file_path = "arenas/" + arena + "/";
-		String file_name = arena + ".conf";
-		String[] sections = {"spawnpoints:"};
-		
-		List<String> spawnpoints = files.readSection(file_path, file_name, sections);
-		
-		String minimum_players = files.readLine(file_path, file_name, "minimum_players");
-		String maximum_players = files.readLine(file_path, file_name, "maximum_players");
-		String allow_movement = files.readLine(file_path, file_name, "allow_movement");
-		String arena_centre = files.readLine(file_path, file_name, "centre");
-		String lobby_spawn = files.readLine(file_path, file_name, "lobby_spawn");
-		
-		if(minimum_players.isEmpty() ||
-		maximum_players.isEmpty() ||
-		allow_movement.isEmpty() ||
-		arena_centre.isEmpty() ||
-		lobby_spawn.isEmpty())
-			return false;
-		
-		try
-		{
-			int max_players = Integer.parseInt(maximum_players);
-			
-			if(spawnpoints.size() != max_players)
-				return false;
-		}
-		catch(NumberFormatException e)
-		{
-			getServer().getConsoleSender().sendMessage("Failed to parse max players");
-		}
-		
-		return true;
 	}
 	
 	public void removeGamePlayer(GamePlayer gamep)
@@ -935,27 +767,17 @@ public class SkyWars extends JavaPlugin
 			return lobby;
 	}
 	
-	public Game createGame(String arena_name, boolean movement)
+	public Game createGame(String arena_name)
 	{
 		Game game = getGame(arena_name);
 		
 		if(game == null)
 		{
-			game = new Game(this, getServer().getWorld(arena_name), arena_name, movement);
+			game = new Game(this, getServer().getWorld(arena_name), arena_name);
 			games.add(game);
 			return game;
 		}
 		else
 			return game;
-	}
-	
-	public Boolean getBooleanFromString(String boolean_value)
-	{
-		if(boolean_value.equalsIgnoreCase("true"))
-			return true;
-		else if(boolean_value.equalsIgnoreCase("false"))
-			return false;
-		
-		return null;
 	}
 }

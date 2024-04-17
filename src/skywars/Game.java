@@ -1,9 +1,6 @@
 package skywars;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -17,8 +14,6 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
-import skywars.others.GzipUtil;
-
 public class Game
 {
 	private SkyWars pl;
@@ -31,8 +26,9 @@ public class Game
 	private int pregame_delaysecods;
 	private boolean pre_game;
 	private boolean player_move_allow;
+	private ArenaCache cached_arena_data;
 	
-	public Game(SkyWars plugin, World arena_in, String game_name_in, boolean allow_movement_in)
+	public Game(SkyWars plugin, World arena_in, String game_name_in)
 	{
 		pl = plugin;
 		winner = null;
@@ -42,8 +38,8 @@ public class Game
 		game_name = game_name_in;
 		postgame_delayseconds = 5;
 		pregame_delaysecods = 3;
-		player_move_allow = allow_movement_in;
 		pre_game = false;
+		cached_arena_data = pl.getFileManager().getArenaCache(game_name);
 	}
 	
 	public World getArenaWorld()
@@ -65,7 +61,7 @@ public class Game
 	{
 		int totalPlayers = 0;
 		
-		Iterator<GamePlayer> gamep_it = pl.getGamePlayersIterator();
+		Iterator<GamePlayer> gamep_it = pl.getGamePlayers().iterator();
 		
 		while(gamep_it.hasNext())
 		{
@@ -78,16 +74,16 @@ public class Game
 		return totalPlayers;
 	}
 	
-	public List<String> sendPlayerToGame(Player player, List<String> spawnpoints)
+	public void sendPlayerToGame(Player player, List<double[]> spawnpoints)
 	{
-		String[] split_spawnpoint = spawnpoints.remove(new Random().nextInt(spawnpoints.size())).split(" ");
+		double[] spawnpoint = spawnpoints.remove(new Random().nextInt(spawnpoints.size()));
 		
 		try
 		{
 			double x,y,z;
-			x = Double.parseDouble(split_spawnpoint[0]);
-			y = Double.parseDouble(split_spawnpoint[1]);
-			z = Double.parseDouble(split_spawnpoint[2]);
+			x = spawnpoint[0];
+			y = spawnpoint[1];
+			z = spawnpoint[2];
 			
 			teleportPlayerToGame(player, x, y, z);
 		}
@@ -95,8 +91,6 @@ public class Game
 		{
 			System.out.println("failed to parse spawnpoint");
 		}
-		
-		return spawnpoints;
 	}
 	
 	public void createGame(Lobby lobby)
@@ -138,7 +132,7 @@ public class Game
 	
 	private void freePlayersFromCages(String game_name)
 	{
-		Iterator<GamePlayer> gamep_it = pl.getGamePlayersIterator();
+		Iterator<GamePlayer> gamep_it = pl.getGamePlayers().iterator();
 		
 		while(gamep_it.hasNext())
 		{
@@ -156,10 +150,8 @@ public class Game
 	
 	private void addPlayersToGame()
 	{
-		String[] sections = {"spawnpoints:"};
-		List<String> spawnpoints = pl.getFileManager().readSection("arenas/" + game_name + "/", game_name + ".conf", sections);
-		
-		Iterator<GamePlayer> gamep_it = pl.getGamePlayersIterator();
+		List<double[]> spawnpoints_copy = new ArrayList<>(cached_arena_data.getSpawnpoints());
+		Iterator<GamePlayer> gamep_it = pl.getGamePlayers().iterator();
 		
 		while(gamep_it.hasNext())
 		{
@@ -167,7 +159,7 @@ public class Game
 			
 			if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY) && gamep.isPlayerInGame(game_name))
 			{
-				spawnpoints = sendPlayerToGame(gamep.getPlayer(), spawnpoints);
+				sendPlayerToGame(gamep.getPlayer(), spawnpoints_copy);
 				gamep.setPlayerState(SkyWars.GameState.GAME);
 			}
 		}
@@ -208,30 +200,6 @@ public class Game
 		startDelayTask();
 	}
 	
-	private Map<Integer, String> readChunkMaps()
-	{
-		Map<Integer, String> maps = new HashMap<>();
-		
-		for(String read_line : pl.getFileManager().read("arenas/" + game_name + "/maps"))
-		{
-			String[] split_line = read_line.split(" ");
-			
-			try
-			{
-				Integer block_map = Integer.parseInt(split_line[0]);
-				String block = split_line[1];
-				
-				maps.put(block_map, block);
-			}
-			catch(NumberFormatException e)
-			{
-				System.out.println("failed to parse chunk maps");
-			}
-		}
-		
-		return maps;
-	}
-	
 	public void restoreArena()
 	{
 		ExecutorService arena_restore = pl.getArenaRestoreThreadpool();
@@ -244,48 +212,12 @@ public class Game
 				ExecutorService threadpool = Executors.newSingleThreadExecutor();
 				ChunkSave chunk_save = pl.getChunkSave();
 				BlockRestore block_restore = chunk_save.newBlockRestoreTask(game_name, threadpool);
-				Map<Integer, String> maps = readChunkMaps();
+				Map<int[], String> chunks_ready = cached_arena_data.getUnzipedRestoreData();
 				
-				try(FileInputStream stream = new FileInputStream(pl.getFileManager().getPluginFolder() + "arenas/" + game_name + "/chunks"))
+				for(int[] key : chunks_ready.keySet())
 				{
-					String buffer = "";
-					int character_byte = -1;
-					
-					while((character_byte = stream.read()) != -1)
-					{
-						String character = new String(new byte[]{(byte) character_byte});
-						
-						if(character.equals("]"))
-						{
-							String chunk_name = buffer.substring(0, buffer.indexOf(","));
-							String size = buffer.substring(buffer.indexOf(",") + 1);
-							
-							String chunk_x = chunk_name.substring(0, chunk_name.indexOf("."));
-							String chunk_z = chunk_name.substring(chunk_name.indexOf(".") + 1);
-							
-							try
-							{
-								byte[] chunk_data = new byte[Integer.parseInt(size)];
-								stream.read(chunk_data);
-								threadpool.execute(chunk_save.newChunkRestoreTask(block_restore, maps, GzipUtil.unzip(chunk_data), chunk_x + " " + chunk_z));
-								buffer = "";
-								continue;
-							}
-							catch(NumberFormatException e)
-							{
-								System.out.println(SkyWars.PREFIX + "failed to read byte stream");
-							}
-						}
-						buffer += character;
-					}
-				}
-				catch(FileNotFoundException e1)
-				{
-					e1.printStackTrace();
-				}
-				catch(IOException e)
-				{
-					e.printStackTrace();
+					String chunk = chunks_ready.get(key);
+					threadpool.execute(chunk_save.newChunkRestoreTask(block_restore, cached_arena_data.getChunkMaps(), chunk, key[0] + " " + key[1]));
 				}
 				
 				threadpool.shutdown();
@@ -326,7 +258,7 @@ public class Game
 	
 	private void setWinner()
 	{
-		Iterator<GamePlayer> gamep_it = pl.getGamePlayersIterator();
+		Iterator<GamePlayer> gamep_it = pl.getGamePlayers().iterator();
 		
 		while(gamep_it.hasNext())
 		{

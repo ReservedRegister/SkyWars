@@ -138,8 +138,8 @@ public abstract class ChunkSaveCommon
 		    		
 		    		if(file_handle.isHandleClosed())
 		    		{
-		    			pl.removeArenaFromQueue(world_name);
-		    			pl.addArenaToSet(world_name);
+		    			pl.getLoadingArenas().remove(world_name);
+		    			pl.getLoadedArenas().add(world_name);
 		    			sender.sendMessage(ChatColor.DARK_PURPLE + "Arena loaded!");
 		    			task.cancel();
 		    		}
@@ -178,7 +178,7 @@ public abstract class ChunkSaveCommon
 					
 					if(!current_block.equals(last_block))
 					{
-						int block_count = coords_data - start - 1;
+						int block_count = (coords_data-1) - start;
 						String last_block_coords = "";
 						
 						if(block_count != 0)
@@ -187,10 +187,17 @@ public abstract class ChunkSaveCommon
 							last_block_coords = " " + start;
 						
 						
-						if(saved_block_data.containsKey(last_block))
-							saved_block_data.merge(last_block, last_block_coords, (coords, new_coords) -> coords.concat(new_coords));
+						String saved_blocks = saved_block_data.get(last_block);
+						
+						if(saved_blocks != null)
+						{
+							String updated_blocks = saved_blocks + last_block_coords;
+							saved_block_data.put(last_block, updated_blocks);
+						}
 						else
+						{
 							saved_block_data.put(last_block, last_block_coords);
+						}
 						
 						start = coords_data;
 					}
@@ -202,18 +209,23 @@ public abstract class ChunkSaveCommon
 		}
 		
 		String last_block_layer = " " + start + ";" + (block_height * 16 * 16 - start - 1);
+		String saved_blocks = saved_block_data.get(last_block);
 		
-		if(saved_block_data.containsKey(last_block))
-			saved_block_data.merge(last_block, last_block_layer, (coords, new_coords) -> coords.concat(new_coords));
+		if(saved_blocks != null)
+		{
+			String updated_blocks = saved_blocks + last_block_layer;
+			saved_block_data.put(last_block, updated_blocks);
+		}
 		else
+		{
 			saved_block_data.put(last_block, last_block_layer);
+		}
 		
 		saveChunkBytes(saved_block_data, snap, file_handle, maps, block_maps);
 	}
 	
 	private synchronized void saveChunkBytes(Map<String, String> saved_block_data, ChunkSnapshot snap, FileHandle file_handle, Map<Integer, String> maps, IntegerByRef block_maps)
 	{
-		String chunk_name = snap.getX() + "." + snap.getZ();
     	String write_line = "";
     	
 		for(String block : saved_block_data.keySet())
@@ -241,7 +253,7 @@ public abstract class ChunkSaveCommon
 		}
 		
 		byte[] chunk_data = GzipUtil.zip(write_line.trim());
-		String label = chunk_name + "," + chunk_data.length + "]";
+		String label = snap.getX() + " " + snap.getZ() + " " + chunk_data.length + " ";
 		
 		file_handle.writeBytes(label.getBytes(), chunk_data);
 	}
