@@ -293,7 +293,16 @@ public class SkyWarsCommand implements CommandExecutor
 					return true;
 				}
 				
-				pl.unloadArena(sender, args[1]);
+				boolean removed = pl.getLoadedArenas().remove(args[1]);
+				
+				if(removed)
+				{
+					sender.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Arena unloaded!");
+				}
+				else
+				{
+					sender.sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Arena was not loaded!");
+				}
 			}
 			else if(args[0].equalsIgnoreCase("join"))
 			{

@@ -34,7 +34,7 @@ public class BlockRestoreBlockData extends BlockRestoreTask
 		if(super.isThreadPoolDone())
 		{
 			super.getPlugin().getServer().getConsoleSender().sendMessage("[" + getBlocks() + "] blocks restored in [" + getRestoreWorld().getName() + "]");
-			super.getPlugin().removeGame(getPlugin().getGame(getRestoreWorld().getName()));
+			super.getPlugin().getGames().remove(super.getPlugin().getGame(getRestoreWorld().getName()));
 			
 			Lobby game_lobby = super.getPlugin().getLobby(getRestoreWorld().getName());
 			

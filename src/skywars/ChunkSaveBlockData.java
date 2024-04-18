@@ -1,6 +1,5 @@
 package skywars;
 
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 import org.bukkit.ChunkSnapshot;
@@ -20,9 +19,9 @@ public class ChunkSaveBlockData extends ChunkSaveCommon implements ChunkSave
 	}
 	
 	@Override
-	public ChunkRestore newChunkRestoreTask(BlockRestore block_restore, Map<Integer, String> maps, String unzip, String chunk_name)
+	public ChunkRestore newChunkRestoreTask(BlockRestore block_restore, ChunkSnapshot snap_in, String unzip)
 	{
-		return new ChunkRestoreBlockData(super.getPlugin(), maps, block_restore, unzip, chunk_name);
+		return new ChunkRestoreBlockData(super.getPlugin(), snap_in, block_restore, unzip);
 	}
 	
 	@Override

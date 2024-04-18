@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,6 +18,7 @@ import java.util.Scanner;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.command.CommandSender;
 
 public class ArenaFileManager
 {
@@ -66,7 +68,7 @@ public class ArenaFileManager
 					}
 					else
 					{
-						ArenaCache new_cache = new ArenaCache();
+						ArenaCache new_cache = new ArenaCache(pl, arena_name);
 						new_cache.addSpawnPoint(parsed_spawnpoint);
 						cached_arenas.put(arena_name, new_cache);
 					}
@@ -96,7 +98,6 @@ public class ArenaFileManager
 	{
 		String file_path = "arenas/" + arena_name;
 		String arena_main_conf = arena_name + ".txt";
-		String final_path = file_path + "/" + arena_main_conf;
 		
 		String minimum_players = readLine(file_path, arena_main_conf, "minimum_players");
 		
@@ -112,7 +113,7 @@ public class ArenaFileManager
 			}
 			else
 			{
-				ArenaCache new_cache = new ArenaCache();
+				ArenaCache new_cache = new ArenaCache(pl, arena_name);
 				new_cache.setMinimumPlayers(min_players);
 				cached_arenas.put(arena_name, new_cache);
 			}
@@ -131,7 +132,6 @@ public class ArenaFileManager
 	{
 		String file_path = "arenas/" + arena_name;
 		String arena_main_conf = arena_name + ".txt";
-		String final_path = file_path + "/" + arena_main_conf;
 		
 		String maximum_players = readLine(file_path, arena_main_conf, "maximum_players");
 		
@@ -147,7 +147,7 @@ public class ArenaFileManager
 			}
 			else
 			{
-				ArenaCache new_cache = new ArenaCache();
+				ArenaCache new_cache = new ArenaCache(pl, arena_name);
 				new_cache.setMaximumPlayers(max_players);
 				cached_arenas.put(arena_name, new_cache);
 			}
@@ -166,7 +166,6 @@ public class ArenaFileManager
 	{
 		String file_path = "arenas/" + arena_name;
 		String arena_main_conf = arena_name + ".txt";
-		String final_path = file_path + "/" + arena_main_conf;
 		
 		String allow_movement = readLine(file_path, arena_main_conf, "allow_movement");
 		
@@ -182,7 +181,7 @@ public class ArenaFileManager
 			}
 			else
 			{
-				ArenaCache new_cache = new ArenaCache();
+				ArenaCache new_cache = new ArenaCache(pl, arena_name);
 				new_cache.setMoveSetting(move);
 				cached_arenas.put(arena_name, new_cache);
 			}
@@ -201,7 +200,6 @@ public class ArenaFileManager
 	{
 		String file_path = "arenas/" + arena_name;
 		String arena_main_conf = arena_name + ".txt";
-		String final_path = file_path + "/" + arena_main_conf;
 		
 		String arena_centre = readLine(file_path, arena_main_conf, "centre");
 		
@@ -211,10 +209,10 @@ public class ArenaFileManager
 			
 			if(centre_split.length == 2)
 			{
-				double x = Double.parseDouble(centre_split[0]);
-				double z = Double.parseDouble(centre_split[1]);
+				int x = Integer.parseInt(centre_split[0]);
+				int z = Integer.parseInt(centre_split[1]);
 				
-				double[] centre_ready = {x, z};
+				int[] centre_ready = {x, z};
 				
 				ArenaCache arena_cache = cached_arenas.get(arena_name);
 				
@@ -224,7 +222,7 @@ public class ArenaFileManager
 				}
 				else
 				{
-					ArenaCache new_cache = new ArenaCache();
+					ArenaCache new_cache = new ArenaCache(pl, arena_name);
 					new_cache.setCentre(centre_ready);
 					cached_arenas.put(arena_name, new_cache);
 				}
@@ -244,7 +242,6 @@ public class ArenaFileManager
 	{
 		String file_path = "arenas/" + arena_name;
 		String arena_main_conf = arena_name + ".txt";
-		String final_path = file_path + "/" + arena_main_conf;
 		
 		String lobby_spawn = readLine(file_path, arena_main_conf, "lobby_spawn");
 		
@@ -268,7 +265,7 @@ public class ArenaFileManager
 				}
 				else
 				{
-					ArenaCache new_cache = new ArenaCache();
+					ArenaCache new_cache = new ArenaCache(pl, arena_name);
 					new_cache.setLobbySpawn(lobby_ready);
 					cached_arenas.put(arena_name, new_cache);
 				}
@@ -291,8 +288,12 @@ public class ArenaFileManager
 		String final_path = file_path + "/" + arena_maps;
 		
 		Map<Integer, String> maps = new HashMap<>();
+		List<String> maps_lines = read(final_path);
 		
-		for(String read_line : read(final_path))
+		if(maps_lines.isEmpty())
+			return false;
+		
+		for(String read_line : maps_lines)
 		{
 			String[] split_line = read_line.split(" ");
 			
@@ -326,7 +327,7 @@ public class ArenaFileManager
 		}
 		else
 		{
-			ArenaCache new_cache = new ArenaCache();
+			ArenaCache new_cache = new ArenaCache(pl, arena_name);
 			new_cache.setChunkMaps(maps);
 			cached_arenas.put(arena_name, new_cache);
 		}
@@ -340,43 +341,52 @@ public class ArenaFileManager
 		String arena_bytes = "chunks.txt";
 		String final_path = file_path + "/" + arena_bytes;
 		
-		try(FileInputStream stream = new FileInputStream(path_name + final_path))
+		if(!isFileCreated(final_path, false))
+			return false;
+		
+		try
 		{
-			List<Byte> read_bytes = new ArrayList<>();
-			byte byte_read = (byte) stream.read();
+			InputStream stream = new FileInputStream(path_name + final_path);
+			
+			int byte_read = stream.read();
+			int byte_counter = 0;
 			
 			while(byte_read != -1)
 			{
-				read_bytes.add(Byte.valueOf(byte_read));
-			}
-			
-			byte[] bytes_ready = new byte[read_bytes.size()];
-			int byte_counter = 0;
-			
-			for(Byte current_byte : read_bytes)
-			{
-				bytes_ready[byte_counter] = current_byte.byteValue();
 				byte_counter++;
+				byte_read = stream.read();
 			}
+			
+			System.out.println("bytes: " + byte_counter);
+			
+			stream.close();
+			stream = new FileInputStream(path_name + final_path);
+			
+			byte[] bytes_ready = new byte[byte_counter];
+			
+			stream.read(bytes_ready);
 			
 			ArenaCache arena_cache = cached_arenas.get(arena_name);
 			
 			if(arena_cache != null)
 			{
+				System.out.println("Restore buffer set!");
 				arena_cache.setRestoreBytes(bytes_ready);
 			}
 			else
 			{
-				ArenaCache new_cache = new ArenaCache();
+				ArenaCache new_cache = new ArenaCache(pl, arena_name);
 				new_cache.setRestoreBytes(bytes_ready);
 				cached_arenas.put(arena_name, new_cache);
 			}
 			
+			stream.close();
+			
 			return true;
 		}
-		catch(FileNotFoundException e1)
+		catch(FileNotFoundException e)
 		{
-			e1.printStackTrace();
+			e.printStackTrace();
 		}
 		catch(IOException e)
 		{
@@ -386,7 +396,7 @@ public class ArenaFileManager
 		return false;
 	}
 	
-	public boolean loadArenaData(String arena)
+	public boolean loadArenaData(String arena, CommandSender sender)
 	{		
 		boolean spawnpoints_ready = readSpawnpoints(arena);
 		boolean min_players_ready = readMinPlayers(arena);
@@ -413,10 +423,6 @@ public class ArenaFileManager
 				move_ready
 				&&
 				lobby_ready
-				&&
-				chunk_maps_ready
-				&&
-				chunks
 		)
 		{
 			if(cached_arena != null)
@@ -425,12 +431,15 @@ public class ArenaFileManager
 				
 				if(num_spawns == cached_arena.getMaximumPlayers())
 				{
-					boolean success = cached_arena.parseRestoreBytes();
-					
-					if(success)
+					if(!chunk_maps_ready || !chunks)
 					{
-						return true;
+						sender.sendMessage(SkyWars.PREFIX + "Creating chunk data!");
+						
+						pl.getLoadingArenas().add(arena);
+						pl.getChunkSave().saveArenaChunks(arena, sender, 8);
 					}
+					
+					return true;
 				}
 			}
 		}
@@ -468,6 +477,27 @@ public class ArenaFileManager
 		
 		String file_path = "arenas/" + arena;
 		String spawnpoints_file = "spawnpoints.txt";
+		String arena_main_conf = arena + ".txt";
+		String final_path_spawnpoints = file_path + "/" + spawnpoints_file;
+		
+		List<String> spawnpoints_raw = read(final_path_spawnpoints);
+		String maximum_players = readLine(file_path, arena_main_conf, "maximum_players");
+		
+		try
+		{
+			int max_players = Integer.parseInt(maximum_players);
+			
+			if(spawnpoints_raw.size() >= max_players)
+			{
+				pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Attempted to save too many spawnpoints!");
+				return false;
+			}
+		}
+		catch(NumberFormatException e)
+		{
+			pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Failed to parse maximum players for arena!");
+			return false;
+		}
 		
 		String write_line = location.getX() + " " + location.getY() + " " + location.getZ();
 		write(file_path, spawnpoints_file, write_line, true);
@@ -704,7 +734,7 @@ public class ArenaFileManager
     {
     	createFile(file_path, file_name, false);
     	
-    	try(OutputStream output_stream = new FileOutputStream(path_name + file_path + file_name, append))
+    	try(OutputStream output_stream = new FileOutputStream(path_name + file_path + "/" + file_name, append))
     	{
     		output_stream.write(write_bytes);
     		output_stream.close();
@@ -719,7 +749,7 @@ public class ArenaFileManager
 	{
 		createFile(file_path, file_name, false);
 		
-		try(FileWriter writer = new FileWriter(path_name + file_path + file_name, append); BufferedWriter bw = new BufferedWriter(writer))
+		try(FileWriter writer = new FileWriter(path_name + file_path + "/" + file_name, append); BufferedWriter bw = new BufferedWriter(writer))
 		{
 			for(String write_line : write_lines)
 			{
@@ -737,7 +767,7 @@ public class ArenaFileManager
 	{
 		createFile(file_path, file_name, false);
 		
-		try(FileWriter writer = new FileWriter(path_name + file_path + file_name, append); BufferedWriter bw = new BufferedWriter(writer))
+		try(FileWriter writer = new FileWriter(path_name + file_path + "/" + file_name, append); BufferedWriter bw = new BufferedWriter(writer))
 		{
 			bw.write(write_line);
 			bw.newLine();

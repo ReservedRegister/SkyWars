@@ -165,6 +165,16 @@ public class SkyWars extends JavaPlugin
 		return players;
 	}
 	
+	public Set<Game> getGames()
+	{
+		return games;
+	}
+	
+	public Set<Lobby> getLobbys()
+	{
+		return lobbys;
+	}
+	
 	public Set<String> getLoadedArenas()
 	{
 		return arenas;
@@ -370,17 +380,6 @@ public class SkyWars extends JavaPlugin
 		return arenas.iterator().next();
 	}
 	
-	public void unloadArena(CommandSender sender, String arena)
-	{
-		if(arenas.remove(arena))
-		{
-			sender.sendMessage(ChatColor.GREEN + "Arena unloaded!");
-			return;
-		}
-		
-		sender.sendMessage(ChatColor.YELLOW + "Arena is not loaded!");
-	}
-	
 	public void resetArea(World world, int x_start, int y_start, int z_start, int x_end, int y_end, int z_end)
 	{
 		if(y_start <= y_end)
@@ -415,11 +414,10 @@ public class SkyWars extends JavaPlugin
 		Set<String> chunks = new HashSet<>();
 		List<int[]> arena_chunks = new ArrayList<>();
 		
-		String arena_centre = files.readLine("arenas/" + world_name + "/", world_name + ".conf", "centre");
-		String[] centre = arena_centre.split(" ");
+		int[] centre = files.getArenaCache(world_name).getCentre();
 		
-		int main_chunk_x = Integer.parseInt(centre[0]);
-		int main_chunk_z = Integer.parseInt(centre[1]);
+		int main_chunk_x = centre[0];
+		int main_chunk_z = centre[1];
 		
 		int chunk_x = main_chunk_x - range;
 		int chunk_x_limit = main_chunk_x + range;
@@ -523,69 +521,30 @@ public class SkyWars extends JavaPlugin
 		
 		sender.sendMessage(ChatColor.YELLOW + "Checking arena data...");
 		
-		if(!files.loadArenaData(arena))
+		if(!files.loadArenaData(arena, sender))
 		{
 			sender.sendMessage(ChatColor.RED + "Arena data is invalid or does not exist");
 			return;
 		}
 		
-		if(!files.isFileCreated("arenas/" + arena + "/chunks", false))
-		{
-			sender.sendMessage(ChatColor.YELLOW + "Creating chunk data!");
-			
-			try
-			{
-				loading_arenas.add(arena);
-				chunk_save.saveArenaChunks(sender, arena, 8);
-				return;
-			}
-			catch(NumberFormatException e)
-			{
-				getServer().getConsoleSender().sendMessage("Failed to parse centre of arena");
-			}
-		}
+		if(loading_arenas.contains(arena))
+			return;
 		
+		files.getArenaCache(arena).parseRestoreBytes();
 		arenas.add(arena);
 		sender.sendMessage(ChatColor.DARK_PURPLE + "Arena loaded!");
 	}
 	
-	public void removeGamePlayer(GamePlayer gamep)
-	{
-		if(gamep != null)
+	public void managePlayerQuit(SkyWars.GameState old_player_state, String old_game)
+	{	
+		if(old_player_state.equals(SkyWars.GameState.LOBBY))
 		{
-			players.remove(gamep);
-		}
-	}
-	
-	public void removeGame(Game game)
-	{
-		if(game != null)
-		{
-			games.remove(game);
-		}
-	}
-	
-	public void removeLobby(Lobby lobby)
-	{
-		if(lobby != null)
-		{
-			lobbys.remove(lobby);
-		}
-	}
-	
-	public void managePlayerQuit(GamePlayer gamep)
-	{
-		if(gamep == null)
-			return;
-		
-		if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY))
-		{
-			Lobby player_lobby = getLobby(gamep.getGameName());
+			Lobby player_lobby = getLobby(old_game);
 			player_lobby.attemptToCloseLobby();
 		}
-		else if(gamep.getPlayerState().equals(SkyWars.GameState.GAME))
+		else if(old_player_state.equals(SkyWars.GameState.GAME))
 		{
-			Game player_game = getGame(gamep.getGameName());
+			Game player_game = getGame(old_game);
 			player_game.attemptToEndGame();
 			
 		}
@@ -593,8 +552,14 @@ public class SkyWars extends JavaPlugin
 	
 	public void removePlayerFromList(GamePlayer gamep)
 	{
-		managePlayerQuit(gamep);
-		removeGamePlayer(gamep);
+		if(gamep != null)
+		{
+			SkyWars.GameState old_state = gamep.getPlayerState();
+			String old_game = gamep.getGameName();
+			
+			players.remove(gamep);
+			managePlayerQuit(old_state, old_game);
+		}
 	}
 	
 	public boolean removePlayerFromGame(GamePlayer gamep)
@@ -603,11 +568,13 @@ public class SkyWars extends JavaPlugin
 		{
 			if(!gamep.getPlayerState().equals(SkyWars.GameState.INACTIVE))
 			{
-				managePlayerQuit(gamep);
+				SkyWars.GameState old_state = gamep.getPlayerState();
+				String old_game = gamep.getGameName();
 				
 				gamep.setPlayerState(GameState.INACTIVE);
-				gamep.setGameName(null);
+				gamep.setGameName("");
 				
+				managePlayerQuit(old_state, old_game);
 				return true;
 			}
 		}
@@ -691,12 +658,14 @@ public class SkyWars extends JavaPlugin
 			if(left && player_state_before_leave.equals(GameState.LOBBY))
 			{
 				player.sendMessage(ChatColor.RED + "You have left the lobby.");
-				sendMessageToPlayers(GameState.GAME, game_before_leave, player.getName() + " has left the lobby");
+				sendMessageToPlayers(GameState.LOBBY, game_before_leave, player.getName() + " has left the lobby");
+				gamep.teleportPlayerToSpawn();
 			}
 			else if(left && player_state_before_leave.equals(GameState.GAME))
 			{
 				player.sendMessage(ChatColor.RED + "You have left the game!");
 				sendMessageToPlayers(GameState.GAME, game_before_leave, player.getName() + " has quit the game");
+				gamep.teleportPlayerToSpawn();
 			}
 			else
 			{

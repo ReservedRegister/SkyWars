@@ -5,35 +5,29 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.bukkit.ChunkSnapshot;
+
 import skywars.others.GzipUtil;
 
 public class ArenaCache
 {
+	private SkyWars pl;
+	private String arena_name;
 	private List<double[]> spawnpoints;
 	private int min_players;
 	private int max_players;
 	private boolean move;
-	private double[] centre_chunk;
+	private int[] centre_chunk;
 	private double[] lobby_spawn;
 	private byte[] restore_bytes;
 	private Map<Integer, String> chunk_maps;
 	private Map<int[], String> processed_chunks;
+	private Map<int[], ChunkSnapshot> chunk_snaps;
 	
-	public ArenaCache(int min_in, int max_in, boolean move_in, byte[] restore_bytes_in)
+	public ArenaCache(SkyWars plugin, String arena_name_in)
 	{
-		spawnpoints = new ArrayList<>();
-		min_players = min_in;
-		max_players = max_in;
-		move = move_in;
-		centre_chunk = new double[2];
-		lobby_spawn = new double[3];
-		restore_bytes = restore_bytes_in;
-		chunk_maps = new HashMap<>();
-		processed_chunks = new HashMap<>();
-	}
-	
-	public ArenaCache()
-	{
+		arena_name = arena_name_in;
+		pl = plugin;
 		spawnpoints = new ArrayList<>();
 		min_players = -1;
 		max_players = -1;
@@ -41,6 +35,9 @@ public class ArenaCache
 		centre_chunk = null;
 		lobby_spawn = null;
 		restore_bytes = null;
+		chunk_maps = null;
+		processed_chunks = new HashMap<>();
+		chunk_snaps = new HashMap<>();
 	}
 	
 	public List<double[]> getSpawnpoints()
@@ -63,7 +60,7 @@ public class ArenaCache
 		return move;
 	}
 	
-	public double[] getCentre()
+	public int[] getCentre()
 	{
 		return centre_chunk;
 	}
@@ -86,6 +83,11 @@ public class ArenaCache
 	public Map<int[], String> getUnzipedRestoreData()
 	{
 		return processed_chunks;
+	}
+	
+	public Map<int[], ChunkSnapshot> getChunkSnaps()
+	{
+		return chunk_snaps;
 	}
 	
 	public void setSpawnpoints(List<double[]> spawns)
@@ -113,7 +115,7 @@ public class ArenaCache
 		move = move_in;
 	}
 	
-	public void setCentre(double[] chunk_in)
+	public void setCentre(int[] chunk_in)
 	{
 		centre_chunk = chunk_in;
 	}
@@ -133,23 +135,53 @@ public class ArenaCache
 		chunk_maps = chunk_maps_in;
 	}
 	
+	public synchronized String getBlockFromMap(int mapping)
+	{
+		return chunk_maps.get(mapping);
+	}
+	
+	public void updateChunksnaps()
+	{
+		for(int[] key : processed_chunks.keySet())
+		{
+			chunk_snaps.put(key, pl.getServer().getWorld(arena_name).getChunkAt(key[0], key[1]).getChunkSnapshot());
+		}
+	}
+	
+	public ChunkSnapshot getChunkSnap(int[] chunk_in)
+	{
+		for(int[] key : chunk_snaps.keySet())
+		{
+			if(key[0] == chunk_in[0])
+			{
+				if(key[1] == chunk_in[1])
+				{
+					return chunk_snaps.get(key);
+				}
+			}
+		}
+		
+		return null;
+	}
+	
 	public boolean parseRestoreBytes()
 	{
 		int chunk_data_counter = 0;
 		String buffer = "";
-		int character_byte = -1;
 		List<String> buffer_data = new ArrayList<>();
 		
-		while(restore_bytes[chunk_data_counter] < restore_bytes.length)
+		System.out.println("parsing!");
+		
+		while(chunk_data_counter < restore_bytes.length)
 		{
-			String character = new String(new byte[]{(byte) character_byte});
+			String character = new String(new byte[]{(byte) restore_bytes[chunk_data_counter]});
 			
 			if(character.equals(" "))
 			{
 				buffer_data.add(buffer);
 				
 				if(buffer_data.size() == 3)
-				{
+				{	
 					try
 					{
 						int chunk_x = Integer.parseInt(buffer_data.get(0));

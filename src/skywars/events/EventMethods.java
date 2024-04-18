@@ -9,6 +9,7 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import skywars.Game;
 import skywars.GamePlayer;
@@ -29,10 +30,17 @@ public class EventMethods
 		
 		if(gamep != null)
 		{
-			Game game = pl.getGame(gamep.getGameName());
-			
-			if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY) || (gamep.getPlayerState().equals(SkyWars.GameState.GAME) && game.isInPreGame()))
+			if(gamep.getPlayerState().equals(SkyWars.GameState.GAME))
+			{
+				Game game = pl.getGame(gamep.getGameName());
+				
+				if(game.isInPreGame())
+					return true;
+			}
+			else if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY))
+			{
 				return true;
+			}
 		}
 		
 		return false;
@@ -42,16 +50,19 @@ public class EventMethods
 	{
 		GamePlayer gamep = pl.getGamePlayer(player);
 		
-		try
+		if(gamep != null)
 		{
-			Game game = pl.getGame(gamep.getGameName());
-			
-			if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY) || (gamep.getPlayerState().equals(SkyWars.GameState.GAME) && game.isInPreGame()))
+			if(gamep.getPlayerState().equals(SkyWars.GameState.GAME))
+			{
+				Game game = pl.getGame(gamep.getGameName());
+				
+				if(game.isInPreGame())
+					return true;
+			}
+			else if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY))
+			{
 				return true;
-		}
-		catch(NullPointerException e)
-		{
-			pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Failed to service BlockPlaceEvent");
+			}
 		}
 		
 		return false;
@@ -61,16 +72,19 @@ public class EventMethods
 	{
 		GamePlayer gamep = pl.getGamePlayer(player);
 		
-		try
+		if(gamep != null)
 		{
-			Game game = pl.getGame(gamep.getGameName());
-			
-			if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY) || (gamep.getPlayerState().equals(SkyWars.GameState.GAME) && game.isInPreGame()))
+			if(gamep.getPlayerState().equals(SkyWars.GameState.GAME))
+			{
+				Game game = pl.getGame(gamep.getGameName());
+				
+				if(game.isInPreGame())
+					return true;
+			}
+			else if(gamep.getPlayerState().equals(SkyWars.GameState.LOBBY))
+			{
 				return true;
-		}
-		catch(NullPointerException e)
-		{
-			pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Failed to service BlockBreakEvent");
+			}
 		}
 		
 		return false;
@@ -80,13 +94,9 @@ public class EventMethods
 	{
 		GamePlayer gamep = pl.getGamePlayer(player);
 		
-		try
+		if(gamep != null)
 		{
 			format = "" + ChatColor.YELLOW + gamep.getCoins() + ChatColor.RESET + " | " + gamep.getPlayer().getName() + " > " + msg;
-		}
-		catch(NullPointerException e)
-		{
-			pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Failed to service SetGameChatFormatEvent");
 		}
 		
 		return format;
@@ -98,11 +108,11 @@ public class EventMethods
 		
 		if(gamep != null)
 		{
-			Game game = pl.getGame(gamep.getGameName());
-			
-			if(game != null)
+			if(gamep.getPlayerState().equals(SkyWars.GameState.GAME))
 			{
-				if(gamep.getPlayerState().equals(SkyWars.GameState.GAME) && !game.isAllowedToMove())
+				Game game = pl.getGame(gamep.getGameName());
+				
+				if(!game.isAllowedToMove())
 					return true;
 			}
 		}
@@ -122,8 +132,8 @@ public class EventMethods
 		
 		ItemStack item_in_hand = null;
 		String arena_name = block.getWorld().getName();
-		String file_path = "arenas/" + arena_name + "/";
-		String file_name = arena_name + ".conf";
+		String file_path = "arenas/" + arena_name;
+		String file_name = arena_name + ".txt";
 		int x,y,z;
 		x = block.getX();
 		y = block.getY();
@@ -189,30 +199,35 @@ public class EventMethods
 		
 		if(item_in_hand != null)
 		{
-			if(item_in_hand.getItemMeta().equals(pl.getCoordsSelectorItem().getItemMeta()))
+			ItemMeta item_in_hand_meta = item_in_hand.getItemMeta();
+			
+			if(item_in_hand_meta != null)
 			{
-				if(action == Action.LEFT_CLICK_BLOCK || action == Action.RIGHT_CLICK_BLOCK)
+				if(item_in_hand_meta.equals(pl.getCoordsSelectorItem().getItemMeta()))
 				{
-					if(pl.getFileManager().read("arenas.txt").contains(block.getWorld().getName()))
+					if(action == Action.LEFT_CLICK_BLOCK || action == Action.RIGHT_CLICK_BLOCK)
 					{
-						if(pl.getFileManager().readLine(file_path, file_name, "lobby_location_one").isEmpty())
+						if(pl.getFileManager().read("arenas.txt").contains(block.getWorld().getName()))
 						{
-							pl.getFileManager().writeLine(file_path, file_name, "lobby_location_one", x + " " + y + " " + z);
-							player.sendMessage(ChatColor.GREEN + "Point A set!");
-						}
-						else if(pl.getFileManager().readLine(file_path, file_name, "lobby_location_two").isEmpty())
-						{
-							pl.getFileManager().writeLine(file_path, file_name, "lobby_location_two", x + " " + y + " " + z);
-							player.sendMessage(ChatColor.DARK_GREEN + "Point B set!");
+							if(pl.getFileManager().readLine(file_path, file_name, "lobby_location_one").isEmpty())
+							{
+								pl.getFileManager().writeLine(file_path, file_name, "lobby_location_one", x + " " + y + " " + z);
+								player.sendMessage(ChatColor.GREEN + "Point A set!");
+							}
+							else if(pl.getFileManager().readLine(file_path, file_name, "lobby_location_two").isEmpty())
+							{
+								pl.getFileManager().writeLine(file_path, file_name, "lobby_location_two", x + " " + y + " " + z);
+								player.sendMessage(ChatColor.DARK_GREEN + "Point B set!");
+							}
+							else
+								player.sendMessage(ChatColor.RED + "Coordinates have already been set");
 						}
 						else
-							player.sendMessage(ChatColor.RED + "Coordinates have already been set");
+							player.sendMessage(ChatColor.RED + "This world is not in the allowed arenas file");
 					}
-					else
-						player.sendMessage(ChatColor.RED + "This world is not in the allowed arenas file");
-				}
 
-				return true;
+					return true;
+				}
 			}
 		}
 		

@@ -2,7 +2,6 @@ package skywars.legacy;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Map;
 
 import org.bukkit.ChunkSnapshot;
 
@@ -21,9 +20,9 @@ public class ChunkRestoreMaterialData extends ChunkRestoreTask implements ChunkR
 	private int chunk_x;
 	private int chunk_z;
 	
-	public ChunkRestoreMaterialData(SkyWars plugin, Map<Integer, String> maps_in, BlockRestore blockrestore_task_in, String chunk_data_in, String chunk_name_in)
+	public ChunkRestoreMaterialData(SkyWars plugin, ChunkSnapshot snap_in, BlockRestore blockrestore_task_in, String chunk_data_in)
 	{
-		super(plugin, maps_in, blockrestore_task_in.getRestoreWorld().getName(), chunk_data_in, chunk_name_in);
+		super(plugin, snap_in, blockrestore_task_in.getRestoreWorld().getName(), chunk_data_in);
 		
 		blockrestore_task = blockrestore_task_in;
 		snap = getChunkSnap();

@@ -1,7 +1,5 @@
 package skywars;
 
-import java.util.Map;
-
 import org.bukkit.ChunkSnapshot;
 
 public class ChunkRestoreBlockData extends ChunkRestoreTask implements ChunkRestore
@@ -11,9 +9,9 @@ public class ChunkRestoreBlockData extends ChunkRestoreTask implements ChunkRest
 	private int chunk_x;
 	private int chunk_z;
 	
-	public ChunkRestoreBlockData(SkyWars plugin, Map<Integer, String> maps_in, BlockRestore blockrestore_task_in, String chunk_data_in, String chunk_name_in)
+	public ChunkRestoreBlockData(SkyWars plugin, ChunkSnapshot maps_in, BlockRestore blockrestore_task_in, String chunk_data_in)
 	{
-		super(plugin, maps_in, blockrestore_task_in.getRestoreWorld().getName(), chunk_data_in, chunk_name_in);
+		super(plugin, maps_in, blockrestore_task_in.getRestoreWorld().getName(), chunk_data_in);
 		
 		blockrestore_task = blockrestore_task_in;
 		snap = getChunkSnap();

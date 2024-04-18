@@ -18,6 +18,7 @@ public class Lobby
 	private String game_name;
 	private int seconds;
 	private boolean isRunning;
+	private ArenaCache cached_arena_data;
 	
 	public Lobby(SkyWars plugin, String game_name_in)
 	{
@@ -26,8 +27,9 @@ public class Lobby
 		game_name = game_name_in;
 		seconds = 10;
 		isRunning = false;
+		cached_arena_data = pl.getFileManager().getArenaCache(game_name);
 		
-		lobby_spawn = getLobbySpawn();
+		setLobbySpawn();
 	}
 	
 	public boolean isRunning()
@@ -71,17 +73,7 @@ public class Lobby
 	
 	public boolean isLobbyFull()
 	{
-		String max_players = pl.getFileManager().readLine("arenas/" + game_name + "/", game_name + ".conf", "maximum_players");
-		int max = -1;
-		
-		try
-		{
-			max = Integer.parseInt(max_players);
-		}
-		catch(NumberFormatException e)
-		{
-			return false;
-		}
+		int max = cached_arena_data.getMaximumPlayers();
 		
 		if(getLobbyPlayerCount() >= max)
 			return true;
@@ -92,7 +84,11 @@ public class Lobby
 	private void createGame()
 	{
 		Game game = pl.createGame(game_name);
-		game.createGame(this);
+		
+		deleteLobbySelection();
+		game.switchToGame();
+		
+		pl.getLobbys().remove(this);
 	}
 	
 	public void stopLobbyTimer()
@@ -100,8 +96,10 @@ public class Lobby
 		if(lobby_timer != null)
 		{
 			lobby_timer.cancel();
-			seconds = 10;
 			lobby_timer = null;
+			
+			seconds = 10;
+			isRunning = false;
 		}
 	}
 	
@@ -123,15 +121,18 @@ public class Lobby
 				seconds--;
 			}
 		}, 0, 20);
+		
+		isRunning = true;
 	}
 	
 	public void addPlayerToLobby(GamePlayer gamep)
 	{
 		if(gamep != null)
 		{
+			teleportPlayerToLobby(gamep);
+			
 			gamep.setPlayerState(SkyWars.GameState.LOBBY);
 			gamep.setGameName(game_name);
-			sendPlayerToLobby(gamep);
 			
 			pl.sendMessageToPlayers(GameState.LOBBY, game_name, gamep.getPlayer().getName() + " has joined the game");
 			attemptToStartCountdown(false);
@@ -140,19 +141,7 @@ public class Lobby
 	
 	public void attemptToStartCountdown(boolean force_start)
 	{
-		String min_players =  pl.getFileManager().readLine("arenas/" + game_name + "/", game_name + ".conf", "minimum_players");
-		
-		int min = -1;
-		
-		try
-		{
-			min = Integer.parseInt(min_players);
-		}
-		catch(NumberFormatException e)
-		{
-			pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Internal Error!");
-			return;
-		}
+		int min = cached_arena_data.getMinimumPlayers();
 		
 		if(!isRunning())
 		{
@@ -163,39 +152,22 @@ public class Lobby
 		}
 	}
 	
-	public Location getLobbySpawn()
+	private void setLobbySpawn()
 	{
-		String file_path = "arenas/" + game_name + "/";
-		String file_name = game_name + ".conf";
+		double[] lobby_spawn_coords = cached_arena_data.getLobbySpawn();
+		double x,y,z;
 		
-		try
-		{
-			String lobby_spawn = pl.getFileManager().readLine(file_path, file_name, "lobby_spawn");
-			
-			if(!lobby_spawn.isEmpty())
-			{
-				String[] split_line = lobby_spawn.split(" ");
-				
-				double x,y,z;
-				x = Double.parseDouble(split_line[0]);
-				y = Double.parseDouble(split_line[1]);
-				z = Double.parseDouble(split_line[2]);
-				
-				return new Location(pl.getServer().getWorld(game_name), x, y, z);
-			}
-		}
-		catch(NumberFormatException e)
-		{
-			System.out.println("failed to parse lobby spawn coordinates");
-		}
+		x = lobby_spawn_coords[0];
+		y = lobby_spawn_coords[1];
+		z = lobby_spawn_coords[2];
 		
-		return pl.getServer().getWorld(game_name).getSpawnLocation();
+		lobby_spawn = new Location(pl.getServer().getWorld(game_name), x, y, z);
 	}
 	
 	public void deleteLobbySelection()
 	{
-		String file_path = "arenas/" + game_name + "/";
-		String file_name = game_name + ".conf";
+		String file_path = "arenas/" + game_name;
+		String file_name = game_name + ".txt";
 		
 		String one = pl.getFileManager().readLine(file_path, file_name, "lobby_location_one");
 		String two = pl.getFileManager().readLine(file_path, file_name, "lobby_location_two");
@@ -208,6 +180,7 @@ public class Lobby
 		try
 		{
 			int x_start,y_start,z_start,x_end,y_end,z_end;
+			
 			String[] one_split = one.split(" ");
 			String[] two_split = two.split(" ");
 			
@@ -227,7 +200,7 @@ public class Lobby
 		}
 	}
 	
-	public void sendPlayerToLobby(GamePlayer gamep)
+	public void teleportPlayerToLobby(GamePlayer gamep)
 	{
 		Player player = gamep.getPlayer();
 		
@@ -237,19 +210,7 @@ public class Lobby
 	
 	public void attemptToCloseLobby()
 	{	
-		String min_players = pl.getFileManager().readLine("arenas/" + game_name + "/", game_name + ".conf", "minimum_players");
-		
-		int min = -1;
-		
-		try
-		{
-			min = Integer.parseInt(min_players);
-		}
-		catch(NumberFormatException e)
-		{
-			pl.getServer().getConsoleSender().sendMessage("Failed to parse minimum players");
-			return;
-		}
+		int min = cached_arena_data.getMinimumPlayers();
 		
 		if(getLobbyPlayerCount() >= 1 && getLobbyPlayerCount() < min)
 		{
@@ -259,7 +220,7 @@ public class Lobby
 		else if(getLobbyPlayerCount() <= 0)
 		{
 			stopLobbyTimer();
-			pl.removeLobby(this);
+			pl.getLobbys().remove(this);
 		}
 	}
 }

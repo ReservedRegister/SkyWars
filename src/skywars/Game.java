@@ -9,6 +9,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.bukkit.ChatColor;
+import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -26,6 +27,7 @@ public class Game
 	private int pregame_delaysecods;
 	private boolean pre_game;
 	private boolean player_move_allow;
+	private boolean game_ended;
 	private ArenaCache cached_arena_data;
 	
 	public Game(SkyWars plugin, World arena_in, String game_name_in)
@@ -40,6 +42,8 @@ public class Game
 		pregame_delaysecods = 3;
 		pre_game = false;
 		cached_arena_data = pl.getFileManager().getArenaCache(game_name);
+		player_move_allow = cached_arena_data.isAllowedToMove();
+		game_ended = false;
 	}
 	
 	public World getArenaWorld()
@@ -93,14 +97,12 @@ public class Game
 		}
 	}
 	
-	public void createGame(Lobby lobby)
+	public void switchToGame()
 	{
-		lobby.deleteLobbySelection();
 		addPlayersToGame();
 		
 		startGamePlayerDelay();
-		setPreGameStatus(true);
-		pl.removeLobby(lobby);
+		pre_game = true;
 	}
 	
 	private void startGamePlayerDelay()
@@ -128,6 +130,8 @@ public class Game
 		freePlayersFromCages(game_name);
 		
 		pre_game = false;
+		
+		attemptToEndGame();
 	}
 	
 	private void freePlayersFromCages(String game_name)
@@ -202,6 +206,7 @@ public class Game
 	
 	public void restoreArena()
 	{
+		cached_arena_data.updateChunksnaps();
 		ExecutorService arena_restore = pl.getArenaRestoreThreadpool();
 		
 		arena_restore.execute(new Runnable()
@@ -212,12 +217,14 @@ public class Game
 				ExecutorService threadpool = Executors.newSingleThreadExecutor();
 				ChunkSave chunk_save = pl.getChunkSave();
 				BlockRestore block_restore = chunk_save.newBlockRestoreTask(game_name, threadpool);
+				
 				Map<int[], String> chunks_ready = cached_arena_data.getUnzipedRestoreData();
 				
 				for(int[] key : chunks_ready.keySet())
 				{
 					String chunk = chunks_ready.get(key);
-					threadpool.execute(chunk_save.newChunkRestoreTask(block_restore, cached_arena_data.getChunkMaps(), chunk, key[0] + " " + key[1]));
+					ChunkSnapshot chunk_snap = cached_arena_data.getChunkSnap(key);
+					threadpool.execute(chunk_save.newChunkRestoreTask(block_restore, chunk_snap, chunk));
 				}
 				
 				threadpool.shutdown();
@@ -274,15 +281,22 @@ public class Game
 	
 	public void attemptToEndGame()
 	{
+		if(game_ended)
+			return;
+		
 		int player_count = getGamePlayerCount();
 		
 		if(player_count == 1)
 		{
+			game_ended = true;
+			
 			setWinner();
 			endGame();
 		}
 		else if(player_count < 1)
 		{
+			game_ended = true;
+			
 			restoreArena();
 		}
 	}
@@ -290,10 +304,5 @@ public class Game
 	public boolean isInPreGame()
 	{
 		return pre_game;
-	}
-	
-	public void setPreGameStatus(boolean new_value)
-	{
-		pre_game = new_value;
 	}
 }
