@@ -38,7 +38,7 @@ public abstract class BlockRestoreTask extends BukkitRunnable implements BlockRe
 		return pl;
 	}
 	
-	public boolean isThreadPoolDone()
+	public synchronized boolean isThreadPoolDone()
 	{
 		return threadpool.isTerminated() && blocks.isEmpty();
 	}

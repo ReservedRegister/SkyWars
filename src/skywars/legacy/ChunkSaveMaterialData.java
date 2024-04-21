@@ -44,7 +44,10 @@ public class ChunkSaveMaterialData extends ChunkSaveCommon implements ChunkSave
 		{
 			blockdatamagic = snap.getClass().getMethod("getData", int.class, int.class, int.class);
 		}
-		catch(SecurityException e) {}
+		catch(SecurityException e)
+		{
+			e.printStackTrace();
+		}
 		catch(NoSuchMethodException e)
 		{
 			  try
@@ -52,7 +55,10 @@ public class ChunkSaveMaterialData extends ChunkSaveCommon implements ChunkSave
 				  blockdatamagic = snap.getClass().getMethod("getBlockData", int.class, int.class, int.class);
 				  blocktypemethod = snap.getClass().getMethod("getBlockType", int.class, int.class, int.class);
 			  }
-			  catch(SecurityException e2) {}
+			  catch(SecurityException e2)
+			  {
+				  e2.printStackTrace();
+			  }
 			  catch(NoSuchMethodException e1)
 			  {
 				  try
@@ -60,7 +66,10 @@ public class ChunkSaveMaterialData extends ChunkSaveCommon implements ChunkSave
 					  blocktypemethod = snap.getClass().getMethod("getBlockTypeId", int.class, int.class, int.class);
 					  legacy = true;
 				  }
-				  catch(SecurityException e2) {}
+				  catch(SecurityException e2)
+				  {
+					  e2.printStackTrace();
+				  }
 				  catch(NoSuchMethodException e2)
 				  {
 					  System.out.println("failed to find a method to save chunks");

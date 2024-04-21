@@ -25,12 +25,12 @@ public class ChunkRestoreMaterialData extends ChunkRestoreTask implements ChunkR
 		super(plugin, snap_in, blockrestore_task_in.getRestoreWorld().getName(), chunk_data_in);
 		
 		blockrestore_task = blockrestore_task_in;
-		snap = getChunkSnap();
+		snap = super.getChunkSnap();
 		get_type = null;
 		get_data = null;
 		current_materialdata = null;
-		chunk_x = getChunkX();
-		chunk_z = getChunkZ();
+		chunk_x = super.getChunkX();
+		chunk_z = super.getChunkZ();
 		
 		setMethods();
 	}
@@ -41,7 +41,10 @@ public class ChunkRestoreMaterialData extends ChunkRestoreTask implements ChunkR
 		{
 			get_data = snap.getClass().getMethod("getData", int.class, int.class, int.class);
 		}
-		catch(SecurityException e) {}
+		catch(SecurityException e)
+		{
+			e.printStackTrace();
+		}
 		catch(NoSuchMethodException e)
 		{
 			  try
@@ -49,14 +52,20 @@ public class ChunkRestoreMaterialData extends ChunkRestoreTask implements ChunkR
 				  get_data = snap.getClass().getMethod("getBlockData", int.class, int.class, int.class);
 				  get_type = snap.getClass().getMethod("getBlockType", int.class, int.class, int.class);
 			  }
-			  catch(SecurityException e2) {}
+			  catch(SecurityException e2)
+			  {
+				  e2.printStackTrace();
+			  }
 			  catch(NoSuchMethodException e1)
 			  {
 				  try
 				  {
 					  get_type = snap.getClass().getMethod("getBlockTypeId", int.class, int.class, int.class);
 				  }
-				  catch(SecurityException e2) {}
+				  catch(SecurityException e2)
+				  {
+					  e2.printStackTrace();
+				  }
 				  catch(NoSuchMethodException e2)
 				  {
 					  System.out.println("failed to find a method to restore chunk");
@@ -83,9 +92,18 @@ public class ChunkRestoreMaterialData extends ChunkRestoreTask implements ChunkR
 			{
 				current_materialdata = get_type.invoke(snap, x, y, z) + "(" + get_data.invoke(snap, x, y, z) + ")";
 			}
-			catch(IllegalArgumentException e3) {}
-			catch(IllegalAccessException e4) {}
-			catch(InvocationTargetException e5) {}
+			catch(IllegalArgumentException e3)
+			{
+				e3.printStackTrace();
+			}
+			catch(IllegalAccessException e4)
+			{
+				e4.printStackTrace();
+			}
+			catch(InvocationTargetException e5)
+			{
+				e5.printStackTrace();
+			}
 			
 			if(!block.equals(current_materialdata))
 				blockrestore_task.add(x, y, z, chunk_x, chunk_z, block);

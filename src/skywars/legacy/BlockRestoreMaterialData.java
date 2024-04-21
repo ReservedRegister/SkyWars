@@ -73,7 +73,10 @@ public class BlockRestoreMaterialData extends BlockRestoreTask
 				{
 					settypeid = current_state.getClass().getMethod("setTypeId", int.class);
 				}
-				catch(SecurityException e1) {}
+				catch(SecurityException e1)
+				{
+					e1.printStackTrace();
+				}
 				catch(NoSuchMethodException e2)
 				{
 					getPlugin().getServer().getConsoleSender().sendMessage("failed to find a method to restore chunks");
@@ -83,16 +86,28 @@ public class BlockRestoreMaterialData extends BlockRestoreTask
 				{
 					settypeid.invoke(current_state, Integer.parseInt(material));
 				}
-				catch(IllegalArgumentException e3) {}
-				catch(IllegalAccessException e4) {}
-				catch(InvocationTargetException e5) {}
+				catch(IllegalArgumentException e3)
+				{
+					e3.printStackTrace();
+				}
+				catch(IllegalAccessException e4)
+				{
+					e4.printStackTrace();
+				}
+				catch(InvocationTargetException e5)
+				{
+					e5.printStackTrace();
+				}
 			}
 			
 			try
 			{
 				setrawdata = current_state.getClass().getMethod("setRawData", byte.class);
 			}
-			catch(SecurityException e1) {}
+			catch(SecurityException e1)
+			{
+				e1.printStackTrace();
+			}
 			catch(NoSuchMethodException e2)
 			{
 				getPlugin().getServer().getConsoleSender().sendMessage("failed to find a method to restore chunks");
@@ -102,9 +117,18 @@ public class BlockRestoreMaterialData extends BlockRestoreTask
 			{
 				setrawdata.invoke(current_state, Byte.parseByte(bytedata));
 			}
-			catch(IllegalArgumentException e3) {}
-			catch(IllegalAccessException e4) {}
-			catch(InvocationTargetException e5) {}
+			catch(IllegalArgumentException e3)
+			{
+				e3.printStackTrace();
+			}
+			catch(IllegalAccessException e4)
+			{
+				e4.printStackTrace();
+			}
+			catch(InvocationTargetException e5)
+			{
+				e5.printStackTrace();
+			}
 			
 			current_state.update(true, false);
 			incrementBlocksBy(1);

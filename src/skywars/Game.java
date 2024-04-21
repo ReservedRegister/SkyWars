@@ -228,7 +228,7 @@ public class Game
 				}
 				
 				threadpool.shutdown();
-				block_restore.startTask(5);
+				block_restore.startTask(15);
 			}
 		});
 	}
@@ -240,25 +240,21 @@ public class Game
 			@Override
 			public void run()
 			{
-				try
-				{	
-					if(getGamePlayerCount() <= 0)
-					{
-						restoreArena();
-						delay_before_end.cancel();
-					}
-					
-					if(postgame_delayseconds == 0)
-					{
-						pl.removePlayerFromGame(winner);
-						winner.teleportPlayerToSpawn();
-						restoreArena();
-						delay_before_end.cancel();
-					}
-					
-					postgame_delayseconds--;
+				if(getGamePlayerCount() <= 0)
+				{
+					restoreArena();
+					delay_before_end.cancel();
 				}
-				catch(NullPointerException e) {}
+				
+				if(postgame_delayseconds == 0)
+				{
+					pl.removePlayerFromGame(winner);
+					winner.teleportPlayerToSpawn();
+					restoreArena();
+					delay_before_end.cancel();
+				}
+				
+				postgame_delayseconds--;
 			}
 		}, 0, 20);
 	}
