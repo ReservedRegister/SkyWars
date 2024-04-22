@@ -339,44 +339,40 @@ public class ArenaFileManager
 	{
 		String file_path = "arenas/" + arena_name;
 		String arena_bytes = "chunks.txt";
+		String chunks_size_file = "chunks_size.txt";
 		String final_path = file_path + "/" + arena_bytes;
+		String final_chunks_size_path = file_path + "/" + chunks_size_file;
 		
 		if(!isFileCreated(final_path, false))
+			return false;
+		
+		List<String> chunks_size_lines = read(final_chunks_size_path);
+		
+		if(chunks_size_lines.size() != 1)
 			return false;
 		
 		try
 		{
 			InputStream stream = new FileInputStream(path_name + final_path);
 			
-			int byte_read = stream.read();
-			int byte_counter = 0;
+			int chunks_size_ready = Integer.parseInt(chunks_size_lines.get(0));
 			
-			while(byte_read != -1)
-			{
-				byte_counter++;
-				byte_read = stream.read();
-			}
+			byte[] bytes_read = new byte[chunks_size_ready];
+			stream.read(bytes_read);
 			
-			System.out.println("bytes: " + byte_counter);
-			
-			stream.close();
-			stream = new FileInputStream(path_name + final_path);
-			
-			byte[] bytes_ready = new byte[byte_counter];
-			
-			stream.read(bytes_ready);
+			System.out.println("bytes: " + bytes_read.length);
 			
 			ArenaCache arena_cache = cached_arenas.get(arena_name);
 			
 			if(arena_cache != null)
 			{
 				System.out.println("Restore buffer set!");
-				arena_cache.setRestoreBytes(bytes_ready);
+				arena_cache.setRestoreBytes(bytes_read);
 			}
 			else
 			{
 				ArenaCache new_cache = new ArenaCache(pl, arena_name);
-				new_cache.setRestoreBytes(bytes_ready);
+				new_cache.setRestoreBytes(bytes_read);
 				cached_arenas.put(arena_name, new_cache);
 			}
 			
@@ -389,6 +385,10 @@ public class ArenaFileManager
 			e.printStackTrace();
 		}
 		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+		catch(NumberFormatException e)
 		{
 			e.printStackTrace();
 		}

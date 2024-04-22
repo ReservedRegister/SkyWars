@@ -60,7 +60,7 @@ public abstract class BlockRestoreTask extends BukkitRunnable implements BlockRe
 	
 	public BlockQueue removeWithLimit()
 	{
-		if(limit_block_counter <= 250)
+		if(limit_block_counter <= 6)
 		{
 			limit_block_counter++;
 			return remove();

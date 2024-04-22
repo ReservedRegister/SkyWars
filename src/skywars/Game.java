@@ -228,7 +228,7 @@ public class Game
 				}
 				
 				threadpool.shutdown();
-				block_restore.startTask(15);
+				block_restore.startTask(6);
 			}
 		});
 	}

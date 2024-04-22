@@ -101,8 +101,8 @@ public abstract class ChunkSaveCommon
 		String file_path = "arenas/" + world_name;
 		String file_name = "chunks.txt";
 		
-		ExecutorService threadpool = Executors.newFixedThreadPool(4);
-		AsyncFileWrite file_handle = new AsyncFileWrite(pl, file_path, file_name, true);
+		ExecutorService threadpool = Executors.newFixedThreadPool(64);
+		ChunkWriter file_handle = new ChunkWriter(pl, file_path, file_name, true);
 		World world = pl.getServer().getWorld(world_name);
 		
 		Map<Integer, String> maps = new HashMap<>();
@@ -124,7 +124,7 @@ public abstract class ChunkSaveCommon
 		waitForTasks(threadpool, file_handle, sender, world_name, maps);
 	}
 	
-	private void waitForTasks(ExecutorService threadpool, AsyncFileWrite file_handle, CommandSender sender, String world_name, Map<Integer, String> maps)
+	private void waitForTasks(ExecutorService threadpool, ChunkWriter file_handle, CommandSender sender, String world_name, Map<Integer, String> maps)
 	{
 		threadpool.shutdown();
 		
@@ -136,29 +136,28 @@ public abstract class ChunkSaveCommon
 		    {
 		    	if(threadpool.isTerminated())
 		    	{
-		    		file_handle.closeBuffering();
 		    		saveChunkMaps(world_name, maps);
 		    		
-		    		if(file_handle.isWriteFinished())
-		    		{		    			
-		    			boolean chunk_maps_ready = pl.getFileManager().readChunkMaps(world_name);
-		    			boolean chunks = pl.getFileManager().readChunks(world_name);
+		    		file_handle.closeWriter();
+		    		file_handle.writeChunkSize();
+		    		
+	    			boolean chunk_maps_ready = pl.getFileManager().readChunkMaps(world_name);
+	    			boolean chunks = pl.getFileManager().readChunks(world_name);
+	    			
+	    			if(chunk_maps_ready && chunks)
+	    			{
+		    			pl.getLoadingArenas().remove(world_name);
+		    			pl.getLoadedArenas().add(world_name);
 		    			
-		    			if(chunk_maps_ready && chunks)
-		    			{
-			    			pl.getLoadingArenas().remove(world_name);
-			    			pl.getLoadedArenas().add(world_name);
-			    			
-			    			pl.getFileManager().getArenaCache(world_name).parseRestoreBytes();
-			    			sender.sendMessage(ChatColor.DARK_PURPLE + "Arena loaded!");
-		    			}
-		    			else
-		    			{
-		    				sender.sendMessage(ChatColor.DARK_PURPLE + "Failed to load arena world data!");
-		    			}
-		    			
-		    			task.cancel();
-		    		}
+		    			pl.getFileManager().getArenaCache(world_name).parseRestoreBytes();
+		    			sender.sendMessage(ChatColor.DARK_PURPLE + "Arena loaded!");
+	    			}
+	    			else
+	    			{
+	    				sender.sendMessage(ChatColor.DARK_PURPLE + "Failed to load arena world data!");
+	    			}
+	    			
+	    			task.cancel();
 		    	}
 		    }
 		}, 0, 1);
@@ -178,7 +177,7 @@ public abstract class ChunkSaveCommon
 		getPlugin().getFileManager().write(file_path, maps_file, write_line, false);
 	}
 	
-	public void saveChunk(ChunkSnapshot snap, AsyncFileWrite file_handle, Map<Integer, String> maps, IntegerByRef block_maps)
+	public void saveChunk(ChunkSnapshot snap, ChunkWriter file_handle, Map<Integer, String> maps, IntegerByRef block_maps)
 	{
 		Map<String, String> saved_block_data = new HashMap<>();
 		String last_block = getCurrentBlock(snap, 0, 0, 0);
@@ -226,7 +225,15 @@ public abstract class ChunkSaveCommon
 			}
 		}
 		
-		String last_block_layer = " " + start + ";" + ((block_height * 16 * 16) - (start-1));
+		int top_block = (block_height * 16 * 16) - 1;
+		int block_count = top_block - start;
+		String last_block_layer  = "";
+		
+		if(block_count != 0)
+			last_block_layer = " " + start + ";" + block_count;
+		else
+			last_block_layer = " " + start;
+		
 		String saved_blocks = saved_block_data.get(last_block);
 		
 		if(saved_blocks != null)
@@ -242,7 +249,7 @@ public abstract class ChunkSaveCommon
 		saveChunkBytes(saved_block_data, snap, file_handle, maps, block_maps);
 	}
 	
-	private synchronized void saveChunkBytes(Map<String, String> saved_block_data, ChunkSnapshot snap, AsyncFileWrite file_handle, Map<Integer, String> maps, IntegerByRef block_maps)
+	private synchronized void saveChunkBytes(Map<String, String> saved_block_data, ChunkSnapshot snap, ChunkWriter file_handle, Map<Integer, String> maps, IntegerByRef block_maps)
 	{
     	String write_line = "";
     	
