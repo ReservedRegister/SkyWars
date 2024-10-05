@@ -414,7 +414,7 @@ public class SkyWars extends JavaPlugin
 		Set<String> chunks = new HashSet<>();
 		List<int[]> arena_chunks = new ArrayList<>();
 		
-		int[] centre = files.getArenaCache(world_name).getCentre();
+		int[] centre = files.getCachedArenas().get(world_name).getCentre();
 		
 		int main_chunk_x = centre[0];
 		int main_chunk_z = centre[1];
@@ -530,7 +530,7 @@ public class SkyWars extends JavaPlugin
 		if(loading_arenas.contains(arena))
 			return;
 		
-		files.getArenaCache(arena).parseRestoreBytes();
+		files.getCachedArenas().get(arena).parseRestoreBytes();
 		arenas.add(arena);
 		sender.sendMessage(ChatColor.DARK_PURPLE + "Arena loaded!");
 	}

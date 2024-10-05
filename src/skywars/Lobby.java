@@ -27,7 +27,7 @@ public class Lobby
 		game_name = game_name_in;
 		seconds = 10;
 		isRunning = false;
-		cached_arena_data = pl.getFileManager().getArenaCache(game_name);
+		cached_arena_data = pl.getFileManager().getCachedArenas().get(game_name);
 		
 		setLobbySpawn();
 	}

@@ -35,7 +35,6 @@ public class ChunkSaveMaterialData extends ChunkSaveCommon implements ChunkSave
 	@Override
 	public String getCurrentBlock(ChunkSnapshot snap, int x, int y, int z)
 	{
-		String world_name = snap.getWorldName();
 		Method blocktypemethod = null;
 		Method blockdatamagic = null;
 		boolean legacy = false;
@@ -86,14 +85,12 @@ public class ChunkSaveMaterialData extends ChunkSaveCommon implements ChunkSave
 				Material material = (Material) blocktypemethod.invoke(snap, x, y, z);
 				int magic_value = (int) blockdatamagic.invoke(snap, x, y, z);
 				current_materialdata = material.name() + "(" + magic_value + ")";
-				saveChests(world_name, material.name(), x, y, z, snap.getX(), snap.getZ());
 			}
 			else
 			{
 				int material = (int) blocktypemethod.invoke(snap, x, y, z);
 				int magic_value = (int) blockdatamagic.invoke(snap, x, y, z);
 				current_materialdata = material + "(" + magic_value + ")";
-				saveChests(world_name, (Integer)material, x, y, z, snap.getX(), snap.getZ());
 			}
 		}
 		catch(IllegalArgumentException e)

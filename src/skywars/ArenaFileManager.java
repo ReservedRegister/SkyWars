@@ -33,9 +33,81 @@ public class ArenaFileManager
 		cached_arenas = new HashMap<>();
 	}
 	
-	public ArenaCache getArenaCache(String arena_name)
+	public Map<String, ArenaCache> getCachedArenas()
 	{
-		return cached_arenas.get(arena_name);
+		return cached_arenas;
+	}
+	
+	public ArenaCache getOrCreateArenaCache(String arena_name)
+	{
+		ArenaCache arena_cache = cached_arenas.get(arena_name);
+		
+		if(arena_cache == null)
+		{
+			ArenaCache new_cache = new ArenaCache(pl, arena_name);
+			cached_arenas.put(arena_name, new_cache);
+			
+			arena_cache = new_cache;
+		}
+		
+		return arena_cache;
+	}
+	
+	public boolean readChests(String arena_name)
+	{
+		String file_path = "arenas/" + arena_name;
+		String chests_file = "chests.txt";
+		String final_path = file_path + "/" + chests_file;
+		
+		List<String> chests_raw = read(final_path);
+		
+		for(String chest_raw : chests_raw)
+		{
+			String[] split_chest = chest_raw.split(" ");
+			
+			if(split_chest.length >= 8)
+			{
+				ArenaCache arena_cache = getOrCreateArenaCache(arena_name);
+				
+				try
+				{
+					int chest_chunk_x = Integer.parseInt(split_chest[0]);
+					int chest_chunk_z = Integer.parseInt(split_chest[1]);
+					
+					int chest_x = Integer.parseInt(split_chest[2]);
+					int chest_y = Integer.parseInt(split_chest[3]);
+					int chest_z = Integer.parseInt(split_chest[4]);
+					
+					ArenaChest arena_chest = new ArenaChest(chest_chunk_x, chest_chunk_z, chest_x, chest_y, chest_z);
+					
+					for(int i = 5; i < split_chest.length; i = i + 3)
+					{
+						int chest_item_slot = Integer.parseInt(split_chest[i]);
+						int chest_item_count = Integer.parseInt(split_chest[i+1]);
+						String chest_item = split_chest[i+2];
+						
+						ArenaChestItem new_item = new ArenaChestItem(chest_item_slot, chest_item_count, chest_item);
+						arena_chest.addChestItem(new_item);
+						
+						arena_cache.addArenaChest(arena_chest);
+						
+						//System.out.println(chest_item_slot + " " + chest_item_count + " " + chest_item);
+					}
+				}
+				catch(IndexOutOfBoundsException e)
+				{
+					pl.getServer().getConsoleSender().sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to read chest! (out of bounds)");
+					return false;
+				}
+				catch(NumberFormatException e)
+				{
+					pl.getServer().getConsoleSender().sendMessage(SkyWars.PREFIX + SkyWars.ERROR + "Failed to read chest!");
+					return false;
+				}
+			}
+		}
+		
+		return true;
 	}
 	
 	public boolean readSpawnpoints(String arena_name)
@@ -52,7 +124,7 @@ public class ArenaFileManager
 			
 			if(split_spawnpoint.length == 3)
 			{
-				ArenaCache arena_cache = cached_arenas.get(arena_name);
+				ArenaCache arena_cache = getOrCreateArenaCache(arena_name);
 				
 				try
 				{
@@ -62,23 +134,11 @@ public class ArenaFileManager
 					
 					double[] parsed_spawnpoint = {x, y, z};
 					
-					if(arena_cache != null)
-					{
-						arena_cache.addSpawnPoint(parsed_spawnpoint);
-					}
-					else
-					{
-						ArenaCache new_cache = new ArenaCache(pl, arena_name);
-						new_cache.addSpawnPoint(parsed_spawnpoint);
-						cached_arenas.put(arena_name, new_cache);
-					}
+					arena_cache.addSpawnPoint(parsed_spawnpoint);
 				}
 				catch(NumberFormatException e)
 				{
-					if(arena_cache != null)
-					{
-						arena_cache.getSpawnpoints().clear();
-					}
+					arena_cache.getSpawnpoints().clear();
 					
 					pl.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Failed to parse arena spawnpoints!");
 					return false;
@@ -104,19 +164,9 @@ public class ArenaFileManager
 		try
 		{
 			int min_players = Integer.parseInt(minimum_players);
+			ArenaCache arena_cache = getOrCreateArenaCache(arena_name);
 			
-			ArenaCache arena_cache = cached_arenas.get(arena_name);
-			
-			if(arena_cache != null)
-			{
-				arena_cache.setMinimumPlayers(min_players);
-			}
-			else
-			{
-				ArenaCache new_cache = new ArenaCache(pl, arena_name);
-				new_cache.setMinimumPlayers(min_players);
-				cached_arenas.put(arena_name, new_cache);
-			}
+			arena_cache.setMinimumPlayers(min_players);
 			
 			return true;
 		}
@@ -138,19 +188,9 @@ public class ArenaFileManager
 		try
 		{
 			int max_players = Integer.parseInt(maximum_players);
+			ArenaCache arena_cache = getOrCreateArenaCache(arena_name);
 			
-			ArenaCache arena_cache = cached_arenas.get(arena_name);
-			
-			if(arena_cache != null)
-			{
-				arena_cache.setMaximumPlayers(max_players);
-			}
-			else
-			{
-				ArenaCache new_cache = new ArenaCache(pl, arena_name);
-				new_cache.setMaximumPlayers(max_players);
-				cached_arenas.put(arena_name, new_cache);
-			}
+			arena_cache.setMaximumPlayers(max_players);
 			
 			return true;
 		}
@@ -172,19 +212,9 @@ public class ArenaFileManager
 		try
 		{
 			boolean move = Boolean.parseBoolean(allow_movement);
+			ArenaCache arena_cache = getOrCreateArenaCache(arena_name);
 			
-			ArenaCache arena_cache = cached_arenas.get(arena_name);
-			
-			if(arena_cache != null)
-			{
-				arena_cache.setMoveSetting(move);
-			}
-			else
-			{
-				ArenaCache new_cache = new ArenaCache(pl, arena_name);
-				new_cache.setMoveSetting(move);
-				cached_arenas.put(arena_name, new_cache);
-			}
+			arena_cache.setMoveSetting(move);
 			
 			return true;
 		}
@@ -214,18 +244,9 @@ public class ArenaFileManager
 				
 				int[] centre_ready = {x, z};
 				
-				ArenaCache arena_cache = cached_arenas.get(arena_name);
+				ArenaCache arena_cache = getOrCreateArenaCache(arena_name);
 				
-				if(arena_cache != null)
-				{
-					arena_cache.setCentre(centre_ready);
-				}
-				else
-				{
-					ArenaCache new_cache = new ArenaCache(pl, arena_name);
-					new_cache.setCentre(centre_ready);
-					cached_arenas.put(arena_name, new_cache);
-				}
+				arena_cache.setCentre(centre_ready);
 			}
 			
 			return true;
@@ -257,18 +278,9 @@ public class ArenaFileManager
 				
 				double[] lobby_ready = {x, y, z};
 				
-				ArenaCache arena_cache = cached_arenas.get(arena_name);
+				ArenaCache arena_cache = getOrCreateArenaCache(arena_name);
 				
-				if(arena_cache != null)
-				{
-					arena_cache.setLobbySpawn(lobby_ready);
-				}
-				else
-				{
-					ArenaCache new_cache = new ArenaCache(pl, arena_name);
-					new_cache.setLobbySpawn(lobby_ready);
-					cached_arenas.put(arena_name, new_cache);
-				}
+				arena_cache.setLobbySpawn(lobby_ready);
 			}
 			
 			return true;
@@ -319,18 +331,9 @@ public class ArenaFileManager
 			}
 		}
 		
-		ArenaCache arena_cache = cached_arenas.get(arena_name);
+		ArenaCache arena_cache = getOrCreateArenaCache(arena_name);
 		
-		if(arena_cache != null)
-		{
-			arena_cache.setChunkMaps(maps);
-		}
-		else
-		{
-			ArenaCache new_cache = new ArenaCache(pl, arena_name);
-			new_cache.setChunkMaps(maps);
-			cached_arenas.put(arena_name, new_cache);
-		}
+		arena_cache.setChunkMaps(maps);
 		
 		return true;
 	}
@@ -362,19 +365,10 @@ public class ArenaFileManager
 			
 			System.out.println("bytes: " + bytes_read.length);
 			
-			ArenaCache arena_cache = cached_arenas.get(arena_name);
+			ArenaCache arena_cache = getOrCreateArenaCache(arena_name);
 			
-			if(arena_cache != null)
-			{
-				System.out.println("Restore buffer set!");
-				arena_cache.setRestoreBytes(bytes_read);
-			}
-			else
-			{
-				ArenaCache new_cache = new ArenaCache(pl, arena_name);
-				new_cache.setRestoreBytes(bytes_read);
-				cached_arenas.put(arena_name, new_cache);
-			}
+			System.out.println("Restore buffer set!");
+			arena_cache.setRestoreBytes(bytes_read);
 			
 			stream.close();
 			
@@ -397,7 +391,7 @@ public class ArenaFileManager
 	}
 	
 	public boolean loadArenaData(String arena, CommandSender sender)
-	{		
+	{
 		boolean spawnpoints_ready = readSpawnpoints(arena);
 		boolean min_players_ready = readMinPlayers(arena);
 		boolean max_players_ready = readMaxPlayers(arena);
@@ -437,6 +431,13 @@ public class ArenaFileManager
 						
 						pl.getLoadingArenas().add(arena);
 						pl.getChunkSave().saveArenaChunks(arena, sender, 8);
+					}
+					else
+					{
+						//Chunks already created load the chests
+						
+						if(!readChests(arena))
+							return false;
 					}
 					
 					return true;

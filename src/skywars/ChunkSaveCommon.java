@@ -1,6 +1,8 @@
 package skywars;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -14,7 +16,11 @@ import org.bukkit.ChatColor;
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.Chest;
 import org.bukkit.command.CommandSender;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 import skywars.others.GzipUtil;
 
@@ -42,41 +48,60 @@ public abstract class ChunkSaveCommon
 		}
 	}
 	
-	public void saveChests(String world_name, Object material, int x, int y, int z, int chunk_x, int chunk_z)
+	public void saveChests(String world_name, int x, int y, int z, int chunk_x, int chunk_z)
 	{
-		if(material instanceof String)
+		List<ArenaChestItem> chest_items = getChestItems(world_name, chunk_x, chunk_z, x, y, z);
+		
+		if(!chest_items.isEmpty())
 		{
-			if(material.equals("CHEST"))
+			String file_path = "arenas/" + world_name + "/";
+			String file_name = "chests.txt";
+			
+			String chest_items_ready = "";
+			
+			for(ArenaChestItem chest_item : chest_items)
 			{
-				String file_path = "arenas/" + world_name + "/";
-				String file_name = "chests.txt";
-				int[] coords = getCoords(world_name, chunk_x, chunk_z, x, y, z);
-				
-				getPlugin().getFileManager().write(file_path, file_name, new String[] {coords[0] + " " + coords[1] + " " + coords[2] + ":"}, true);
+				chest_items_ready += chest_item.getItemLocation() + " " + chest_item.getItemCount() + " " + chest_item.getItemMaterial() + " ";
 			}
-		}
-		else if(material instanceof Integer)
-		{
-			if(material.equals(54))
-			{
-				String file_path = "arenas/" + world_name + "/";
-				String file_name = "chests.txt";
-				int[] coords = getCoords(world_name, chunk_x, chunk_z, x, y, z);
-				
-				getPlugin().getFileManager().write(file_path, file_name, new String[] {coords[0] + " " + coords[1] + " " + coords[2] + ":"}, true);
-			}
+			
+			chest_items_ready = chest_items_ready.trim();
+			
+			getPlugin().getFileManager().write(file_path, file_name, chunk_x + " " + chunk_z + " " + x + " " + y + " " + z + " " + chest_items_ready, true);
 		}
 	}
 	
-	private int[] getCoords(String world_name, int chunk_x, int chunk_z, int x, int y, int z)
+	private List<ArenaChestItem> getChestItems(String world_name, int chunk_x, int chunk_z, int x, int y, int z)
 	{
-		Future<int[]> future = getPlugin().getServer().getScheduler().callSyncMethod(getPlugin(), new Callable<int[]>()
+		Future<List<ArenaChestItem>> future = getPlugin().getServer().getScheduler().callSyncMethod(getPlugin(), new Callable<List<ArenaChestItem>>()
 		{
 			@Override
-			public int[] call() throws Exception
+			public List<ArenaChestItem> call() throws Exception
 			{
+				List<ArenaChestItem> chest_items = new ArrayList<>();
+				
 				Block block = pl.getServer().getWorld(world_name).getChunkAt(chunk_x, chunk_z).getBlock(x, y, z);
-				return new int[] {block.getX(), block.getY(), block.getZ()};
+				BlockState block_state = block.getState();
+				
+				if(block_state instanceof Chest)
+				{
+			        Chest chest = (Chest) block_state;
+			        Inventory chest_inv = chest.getBlockInventory();
+			        
+			        for(int item_location = 0; item_location < chest_inv.getContents().length; item_location++)
+			        {
+			        	ItemStack item = chest_inv.getContents()[item_location];
+			        	
+			        	if(item != null)
+			        	{
+			        		String item_material = new String(item.getType().name());
+			        		Integer item_count = item.getAmount();
+			        		
+			        		chest_items.add(new ArenaChestItem(item_location , item_count, item_material));
+			        	}
+			        }
+				}
+				
+				return chest_items;
 			}
 		});
 		
@@ -143,13 +168,14 @@ public abstract class ChunkSaveCommon
 		    		
 	    			boolean chunk_maps_ready = pl.getFileManager().readChunkMaps(world_name);
 	    			boolean chunks = pl.getFileManager().readChunks(world_name);
+	    			boolean chests = pl.getFileManager().readChests(world_name);
 	    			
-	    			if(chunk_maps_ready && chunks)
+	    			if(chunk_maps_ready && chunks && chests)
 	    			{
 		    			pl.getLoadingArenas().remove(world_name);
 		    			pl.getLoadedArenas().add(world_name);
 		    			
-		    			pl.getFileManager().getArenaCache(world_name).parseRestoreBytes();
+		    			pl.getFileManager().getCachedArenas().get(world_name).parseRestoreBytes();
 		    			sender.sendMessage(ChatColor.DARK_PURPLE + "Arena loaded!");
 	    			}
 	    			else
@@ -217,6 +243,12 @@ public abstract class ChunkSaveCommon
 						}
 						
 						start = coords_data;
+					}
+					
+					if(current_block.startsWith(Integer.toString(54)) || current_block.startsWith("CHEST"))
+					{
+						//System.out.println(current_block);
+						saveChests(snap.getWorldName(), x, y, z, snap.getX(), snap.getZ());
 					}
 					
 					last_block = current_block;

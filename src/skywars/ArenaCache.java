@@ -20,6 +20,7 @@ public class ArenaCache
 	private int[] centre_chunk;
 	private double[] lobby_spawn;
 	private byte[] restore_bytes;
+	private List<ArenaChest> stored_chests;
 	private Map<Integer, String> chunk_maps;
 	private Map<int[], String> processed_chunks;
 	private Map<int[], ChunkSnapshot> chunk_snaps;
@@ -38,6 +39,7 @@ public class ArenaCache
 		chunk_maps = null;
 		processed_chunks = new HashMap<>();
 		chunk_snaps = new HashMap<>();
+		stored_chests = new ArrayList<>();
 	}
 	
 	public List<double[]> getSpawnpoints()
@@ -80,6 +82,11 @@ public class ArenaCache
 		return chunk_maps;
 	}
 	
+	public List<ArenaChest> getArenaChests()
+	{
+		return stored_chests;
+	}
+	
 	public Map<int[], String> getUnzipedRestoreData()
 	{
 		return processed_chunks;
@@ -88,6 +95,11 @@ public class ArenaCache
 	public Map<int[], ChunkSnapshot> getChunkSnaps()
 	{
 		return chunk_snaps;
+	}
+	
+	public void addArenaChest(ArenaChest new_chest)
+	{
+		stored_chests.add(new_chest);
 	}
 	
 	public void setSpawnpoints(List<double[]> spawns)

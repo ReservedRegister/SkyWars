@@ -19,7 +19,7 @@ public abstract class ChunkRestoreTask implements Runnable
 		snap = snap_in;
 		world_name = world_name_in;
 		chunk_data = chunk_data_in;
-		arena_cache = pl.getFileManager().getArenaCache(world_name);
+		arena_cache = pl.getFileManager().getCachedArenas().get(world_name);
 		block_height = pl.getServer().getWorld(world_name).getMaxHeight();
 		chunk_x = snap_in.getX();
 		chunk_z = snap_in.getZ();

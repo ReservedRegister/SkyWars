@@ -9,10 +9,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
 public class Game
@@ -41,7 +48,7 @@ public class Game
 		postgame_delayseconds = 5;
 		pregame_delaysecods = 3;
 		pre_game = false;
-		cached_arena_data = pl.getFileManager().getArenaCache(game_name);
+		cached_arena_data = pl.getFileManager().getCachedArenas().get(game_name);
 		player_move_allow = cached_arena_data.isAllowedToMove();
 		game_ended = false;
 	}
@@ -202,6 +209,40 @@ public class Game
 		}
 		
 		startDelayTask();
+	}
+	
+	public void restoreArenaChests()
+	{
+		//method called by sync task!
+		
+		List<ArenaChest> arena_chests = cached_arena_data.getArenaChests();
+		
+		for(ArenaChest arena_chest : arena_chests)
+		{
+			//System.out.println("found chest");
+			List<ArenaChestItem> chest_items = arena_chest.getChestItems();
+			
+			Chunk chunk = pl.getServer().getWorld(game_name).getChunkAt(arena_chest.getChunkX(), arena_chest.getChunkZ());
+			Block block = chunk.getBlock(arena_chest.getBlockX(), arena_chest.getBlockY(), arena_chest.getBlockZ());
+			BlockState block_state = block.getState();
+			
+			if(block_state instanceof Chest)
+			{
+		        Chest chest = (Chest) block_state;
+		        Inventory chest_inv = chest.getBlockInventory();
+		        
+		        chest_inv.clear();
+		        
+		        for(ArenaChestItem chest_item : chest_items)
+		        {
+		        	//System.out.println("found chest item");
+		        	
+		        	ItemStack new_chest_item = new ItemStack(Material.getMaterial(chest_item.getItemMaterial()), chest_item.getItemCount());
+		        	chest_inv.setItem(chest_item.getItemLocation(), new_chest_item);
+		        }
+		        
+			}
+		}
 	}
 	
 	public void restoreArena()

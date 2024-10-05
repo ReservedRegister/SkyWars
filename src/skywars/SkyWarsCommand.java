@@ -297,6 +297,7 @@ public class SkyWarsCommand implements CommandExecutor
 				
 				if(removed)
 				{
+					pl.getFileManager().getCachedArenas().remove(args[1]);
 					sender.sendMessage(SkyWars.PREFIX + SkyWars.SUCCESS + "Arena unloaded!");
 				}
 				else
