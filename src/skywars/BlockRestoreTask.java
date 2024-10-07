@@ -83,6 +83,25 @@ public abstract class BlockRestoreTask extends BukkitRunnable implements BlockRe
 		block_counter += blocks;
 	}
 	
+	public void restoreComplete()
+	{
+		pl.getServer().getConsoleSender().sendMessage("[" + getBlocks() + "] blocks restored in [" + getRestoreWorld().getName() + "]");
+		
+		Game game_completed = pl.getGame(getRestoreWorld().getName());
+		
+		game_completed.restoreArenaChests();
+		pl.getGames().remove(game_completed);
+		
+		Lobby game_lobby = pl.getLobby(getRestoreWorld().getName());
+		
+		if(game_lobby != null)
+		{
+			game_lobby.attemptToStartCountdown(false);
+		}
+		
+		cancel();
+	}
+	
 	@Override
 	public void run()
 	{

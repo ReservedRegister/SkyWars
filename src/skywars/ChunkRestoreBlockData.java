@@ -3,20 +3,10 @@ package skywars;
 import org.bukkit.ChunkSnapshot;
 
 public class ChunkRestoreBlockData extends ChunkRestoreTask implements ChunkRestore
-{
-	private BlockRestore blockrestore_task;
-	private ChunkSnapshot snap;
-	private int chunk_x;
-	private int chunk_z;
-	
-	public ChunkRestoreBlockData(SkyWars plugin, ChunkSnapshot maps_in, BlockRestore blockrestore_task_in, String chunk_data_in)
+{	
+	public ChunkRestoreBlockData(SkyWars plugin, ChunkSnapshot snap_in, BlockRestore blockrestore_task_in, String chunk_data_in)
 	{
-		super(plugin, maps_in, blockrestore_task_in.getRestoreWorld().getName(), chunk_data_in);
-		
-		blockrestore_task = blockrestore_task_in;
-		snap = getChunkSnap();
-		chunk_x = getChunkX();
-		chunk_z = getChunkZ();
+		super(plugin, snap_in, blockrestore_task_in, chunk_data_in);
 	}
 	
 	public void restoreChunk(String block, int y_start, int x_start, int z_start, int x_end, int z_end)
@@ -32,8 +22,8 @@ public class ChunkRestoreBlockData extends ChunkRestoreTask implements ChunkRest
 			if(x == x_end && z == z_end)
 				iterate = false;
 			
-			if(!snap.getBlockData(x, y, z).getAsString().equals("minecraft:" + block))
-				blockrestore_task.add(x, y, z, chunk_x, chunk_z, block);
+			if(!super.getChunkSnap().getBlockData(x, y, z).getAsString().equals("minecraft:" + block))
+				super.getBlockRestoreTask().add(x, y, z, super.getChunkSnap().getX(), super.getChunkSnap().getZ(), block);
 			
 			z++;
 			if(z == 16)

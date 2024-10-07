@@ -1,23 +1,24 @@
 package skywars.legacy;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.concurrent.ExecutorService;
 
 import org.bukkit.ChunkSnapshot;
-import org.bukkit.Material;
 
 import skywars.BlockRestore;
 import skywars.ChunkRestore;
 import skywars.ChunkSave;
-import skywars.ChunkSaveCommon;
+import skywars.ChunkSaveTask;
 import skywars.SkyWars;
 
-public class ChunkSaveMaterialData extends ChunkSaveCommon implements ChunkSave
+public class ChunkSaveMaterialData extends ChunkSaveTask implements ChunkSave
 {
+	private LegacyMethods legacy;
+	
 	public ChunkSaveMaterialData(SkyWars plugin)
 	{
 		super(plugin);
+		
+		legacy = new LegacyMethods(plugin);
 	}
 	
 	@Override
@@ -34,77 +35,12 @@ public class ChunkSaveMaterialData extends ChunkSaveCommon implements ChunkSave
 	
 	@Override
 	public String getCurrentBlock(ChunkSnapshot snap, int x, int y, int z)
-	{
-		Method blocktypemethod = null;
-		Method blockdatamagic = null;
-		boolean legacy = false;
-		
-		try
-		{
-			blockdatamagic = snap.getClass().getMethod("getData", int.class, int.class, int.class);
-		}
-		catch(SecurityException e)
-		{
-			e.printStackTrace();
-		}
-		catch(NoSuchMethodException e)
-		{
-			  try
-			  {
-				  blockdatamagic = snap.getClass().getMethod("getBlockData", int.class, int.class, int.class);
-				  blocktypemethod = snap.getClass().getMethod("getBlockType", int.class, int.class, int.class);
-			  }
-			  catch(SecurityException e2)
-			  {
-				  e2.printStackTrace();
-			  }
-			  catch(NoSuchMethodException e1)
-			  {
-				  try
-				  {
-					  blocktypemethod = snap.getClass().getMethod("getBlockTypeId", int.class, int.class, int.class);
-					  legacy = true;
-				  }
-				  catch(SecurityException e2)
-				  {
-					  e2.printStackTrace();
-				  }
-				  catch(NoSuchMethodException e2)
-				  {
-					  System.out.println("failed to find a method to save chunks");
-				  }
-			  }
-		}
-		
+	{		
 		String current_materialdata = null;
 		
-		try
-		{
-			if(!legacy)
-			{
-				Material material = (Material) blocktypemethod.invoke(snap, x, y, z);
-				int magic_value = (int) blockdatamagic.invoke(snap, x, y, z);
-				current_materialdata = material.name() + "(" + magic_value + ")";
-			}
-			else
-			{
-				int material = (int) blocktypemethod.invoke(snap, x, y, z);
-				int magic_value = (int) blockdatamagic.invoke(snap, x, y, z);
-				current_materialdata = material + "(" + magic_value + ")";
-			}
-		}
-		catch(IllegalArgumentException e)
-		{
-			e.printStackTrace();
-		}
-		catch(IllegalAccessException e)
-		{
-			e.printStackTrace();
-		}
-		catch(InvocationTargetException e)
-		{
-			e.printStackTrace();
-		}
+		int material = (int) legacy.getBlockTypeId(snap, x, y, z);
+		int magic_value = (int) legacy.getBlockData(snap, x, y, z);
+		current_materialdata = material + "(" + magic_value + ")";
 		
 		return current_materialdata;
 	}

@@ -5,36 +5,25 @@ import org.bukkit.ChunkSnapshot;
 public abstract class ChunkRestoreTask implements Runnable
 {
 	private SkyWars pl;
+	private BlockRestore blockrestore_task;
 	private ChunkSnapshot snap;
 	private ArenaCache arena_cache;
 	private String chunk_data;
-	private String world_name;
-	private int block_height;
-	private int chunk_x;
-	private int chunk_z;
 	
-	public ChunkRestoreTask(SkyWars plugin, ChunkSnapshot snap_in, String world_name_in, String chunk_data_in)
+	public ChunkRestoreTask(SkyWars plugin, ChunkSnapshot snap_in, BlockRestore blockrestore_task_in, String chunk_data_in)
 	{
 		pl = plugin;
 		snap = snap_in;
-		world_name = world_name_in;
+		blockrestore_task = blockrestore_task_in;
 		chunk_data = chunk_data_in;
-		arena_cache = pl.getFileManager().getCachedArenas().get(world_name);
-		block_height = pl.getServer().getWorld(world_name).getMaxHeight();
-		chunk_x = snap_in.getX();
-		chunk_z = snap_in.getZ();
+		arena_cache = pl.getFileManager().getCachedArenas().get(blockrestore_task.getRestoreWorld().getName());
 	}
 	
 	public abstract void restoreChunk(String block, int y_start, int x_start, int z_start, int x_end, int z_end);
 	
-	public int getChunkX()
+	public BlockRestore getBlockRestoreTask()
 	{
-		return chunk_x;
-	}
-	
-	public int getChunkZ()
-	{
-		return chunk_z;
+		return blockrestore_task;
 	}
 	
 	public ChunkSnapshot getChunkSnap()
@@ -44,7 +33,7 @@ public abstract class ChunkRestoreTask implements Runnable
 	
 	public int getMaxHeight()
 	{
-		return block_height;
+		return blockrestore_task.getRestoreWorld().getMaxHeight();
 	}
 	
 	private void iterateChunk(String block, String start_end)

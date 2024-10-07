@@ -5,7 +5,7 @@ import java.util.concurrent.ExecutorService;
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.block.data.BlockData;
 
-public class ChunkSaveBlockData extends ChunkSaveCommon implements ChunkSave
+public class ChunkSaveBlockData extends ChunkSaveTask implements ChunkSave
 {
 	public ChunkSaveBlockData(SkyWars plugin)
 	{

@@ -24,11 +24,11 @@ import org.bukkit.inventory.ItemStack;
 
 import skywars.others.GzipUtil;
 
-public abstract class ChunkSaveCommon
+public abstract class ChunkSaveTask
 {
 	private SkyWars pl;
 	
-	public ChunkSaveCommon(SkyWars plugin)
+	public ChunkSaveTask(SkyWars plugin)
 	{
 		pl = plugin;
 	}

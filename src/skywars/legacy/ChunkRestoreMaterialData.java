@@ -1,8 +1,5 @@
 package skywars.legacy;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-
 import org.bukkit.ChunkSnapshot;
 
 import skywars.BlockRestore;
@@ -12,66 +9,13 @@ import skywars.SkyWars;
 
 public class ChunkRestoreMaterialData extends ChunkRestoreTask implements ChunkRestore
 {
-	private BlockRestore blockrestore_task;
-	private ChunkSnapshot snap;
-	private Method get_type;
-	private Method get_data;
-	private String current_materialdata;
-	private int chunk_x;
-	private int chunk_z;
+	private LegacyMethods legacy;
 	
 	public ChunkRestoreMaterialData(SkyWars plugin, ChunkSnapshot snap_in, BlockRestore blockrestore_task_in, String chunk_data_in)
 	{
-		super(plugin, snap_in, blockrestore_task_in.getRestoreWorld().getName(), chunk_data_in);
+		super(plugin, snap_in, blockrestore_task_in, chunk_data_in);
 		
-		blockrestore_task = blockrestore_task_in;
-		snap = super.getChunkSnap();
-		get_type = null;
-		get_data = null;
-		current_materialdata = null;
-		chunk_x = super.getChunkX();
-		chunk_z = super.getChunkZ();
-		
-		setMethods();
-	}
-	
-	private void setMethods()
-	{
-		try
-		{
-			get_data = snap.getClass().getMethod("getData", int.class, int.class, int.class);
-		}
-		catch(SecurityException e)
-		{
-			e.printStackTrace();
-		}
-		catch(NoSuchMethodException e)
-		{
-			  try
-			  {
-				  get_data = snap.getClass().getMethod("getBlockData", int.class, int.class, int.class);
-				  get_type = snap.getClass().getMethod("getBlockType", int.class, int.class, int.class);
-			  }
-			  catch(SecurityException e2)
-			  {
-				  e2.printStackTrace();
-			  }
-			  catch(NoSuchMethodException e1)
-			  {
-				  try
-				  {
-					  get_type = snap.getClass().getMethod("getBlockTypeId", int.class, int.class, int.class);
-				  }
-				  catch(SecurityException e2)
-				  {
-					  e2.printStackTrace();
-				  }
-				  catch(NoSuchMethodException e2)
-				  {
-					  System.out.println("failed to find a method to restore chunk");
-				  }
-			  }
-		}
+		legacy = new LegacyMethods(plugin);
 	}
 	
 	@Override
@@ -88,25 +32,10 @@ public class ChunkRestoreMaterialData extends ChunkRestoreTask implements ChunkR
 			if(x == x_end && z == z_end)
 				iterate = false;
 			
-			try
-			{
-				current_materialdata = get_type.invoke(snap, x, y, z) + "(" + get_data.invoke(snap, x, y, z) + ")";
-			}
-			catch(IllegalArgumentException e3)
-			{
-				e3.printStackTrace();
-			}
-			catch(IllegalAccessException e4)
-			{
-				e4.printStackTrace();
-			}
-			catch(InvocationTargetException e5)
-			{
-				e5.printStackTrace();
-			}
+			String current_materialdata = legacy.getBlockTypeId(super.getChunkSnap(), x, y, z) + "(" + legacy.getBlockData(super.getChunkSnap(), x, y, z) + ")";
 			
 			if(!block.equals(current_materialdata))
-				blockrestore_task.add(x, y, z, chunk_x, chunk_z, block);
+				super.getBlockRestoreTask().add(x, y, z, super.getChunkSnap().getX(), super.getChunkSnap().getZ(), block);
 			
 			z++;
 			if(z == 16)

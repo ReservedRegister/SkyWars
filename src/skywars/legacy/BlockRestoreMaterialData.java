@@ -1,28 +1,22 @@
 package skywars.legacy;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.concurrent.ExecutorService;
 
-import org.bukkit.Material;
 import org.bukkit.block.BlockState;
 
 import skywars.BlockQueue;
 import skywars.BlockRestoreTask;
-import skywars.Lobby;
 import skywars.SkyWars;
 
 public class BlockRestoreMaterialData extends BlockRestoreTask
 {
-	private Method settypeid;
-	private Method setrawdata;
+	private LegacyMethods legacy;
 	
 	public BlockRestoreMaterialData(SkyWars plugin, String world_name_in, ExecutorService threadpool_in)
 	{
 		super(plugin, world_name_in, threadpool_in);
 		
-		settypeid = null;
-		setrawdata = null;
+		legacy = new LegacyMethods(plugin);
 	}
 	
 	@Override
@@ -48,6 +42,7 @@ public class BlockRestoreMaterialData extends BlockRestoreTask
 			catch(StringIndexOutOfBoundsException e)
 			{
 				getPlugin().getServer().getConsoleSender().sendMessage("failed to obtain material");
+				cancel();
 				return;
 			}
 			
@@ -58,77 +53,14 @@ public class BlockRestoreMaterialData extends BlockRestoreTask
 			catch(StringIndexOutOfBoundsException e)
 			{
 				getPlugin().getServer().getConsoleSender().sendMessage("failed to obtain bytedata");
+				cancel();
 				return;
 			}
 			
 			BlockState current_state = getRestoreWorld().getChunkAt(chunk_x, chunk_z).getBlock(x, y, z).getState();
 			
-			try
-			{
-				current_state.setType(Material.valueOf(material));
-			}
-			catch(IllegalArgumentException e)
-			{	
-				try
-				{
-					settypeid = current_state.getClass().getMethod("setTypeId", int.class);
-				}
-				catch(SecurityException e1)
-				{
-					e1.printStackTrace();
-				}
-				catch(NoSuchMethodException e2)
-				{
-					getPlugin().getServer().getConsoleSender().sendMessage("failed to find a method to restore chunks");
-				}
-				
-				try
-				{
-					settypeid.invoke(current_state, Integer.parseInt(material));
-				}
-				catch(IllegalArgumentException e3)
-				{
-					e3.printStackTrace();
-				}
-				catch(IllegalAccessException e4)
-				{
-					e4.printStackTrace();
-				}
-				catch(InvocationTargetException e5)
-				{
-					e5.printStackTrace();
-				}
-			}
-			
-			try
-			{
-				setrawdata = current_state.getClass().getMethod("setRawData", byte.class);
-			}
-			catch(SecurityException e1)
-			{
-				e1.printStackTrace();
-			}
-			catch(NoSuchMethodException e2)
-			{
-				getPlugin().getServer().getConsoleSender().sendMessage("failed to find a method to restore chunks");
-			}
-			
-			try
-			{
-				setrawdata.invoke(current_state, Byte.parseByte(bytedata));
-			}
-			catch(IllegalArgumentException e3)
-			{
-				e3.printStackTrace();
-			}
-			catch(IllegalAccessException e4)
-			{
-				e4.printStackTrace();
-			}
-			catch(InvocationTargetException e5)
-			{
-				e5.printStackTrace();
-			}
+			legacy.setTypeId(current_state, Integer.parseInt(material));
+			legacy.setRawData(current_state, Byte.parseByte(bytedata));
 			
 			current_state.update(true, false);
 			incrementBlocksBy(1);
@@ -136,18 +68,7 @@ public class BlockRestoreMaterialData extends BlockRestoreTask
 		
 		if(super.isThreadPoolDone())
 		{
-			super.getPlugin().getServer().getConsoleSender().sendMessage("[" + getBlocks() + "] blocks restored in [" + getRestoreWorld().getName() + "]");
-			super.getPlugin().getGame(getRestoreWorld().getName()).restoreArenaChests();
-			super.getPlugin().getGames().remove(super.getPlugin().getGame(getRestoreWorld().getName()));
-			
-			Lobby game_lobby = super.getPlugin().getLobby(getRestoreWorld().getName());
-			
-			if(game_lobby != null)
-			{
-				game_lobby.attemptToStartCountdown(false);
-			}
-			
-			super.cancel();
+			super.restoreComplete();
 		}
 	}
 }
