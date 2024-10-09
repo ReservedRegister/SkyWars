@@ -245,7 +245,7 @@ public abstract class ChunkSaveTask
 						start = coords_data;
 					}
 					
-					if(current_block.startsWith(Integer.toString(54)) || current_block.startsWith("CHEST"))
+					if(current_block.startsWith("54") || current_block.startsWith("CHEST"))
 					{
 						//System.out.println(current_block);
 						saveChests(snap.getWorldName(), x, y, z, snap.getX(), snap.getZ());
